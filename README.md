@@ -1,3 +1,7 @@
+_Note about this repository:_ This is not the official repository, the original creator is known as CodeBird and can be found here: https://birds-are-nice.me/software/minuimus.html  
+I created this repository primarily for my own personal use as I found the documentation of dependancies and command line options limited at the original source. I intend to improve documentation here and stay in sync with future updates.  
+As well, I currently have a working docker image for Minuimus that contains all dependancies, based on debian:slim. After further tweaks and improvements, it will be added here for public use.
+
 # minuimus.pl
 
 - [minuimus.pl](#minuimuspl)
