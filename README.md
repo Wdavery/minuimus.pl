@@ -1,6 +1,6 @@
-_Note about this repository:_ This is not the official repository, the original creator is known as CodeBird and can be found here: https://birds-are-nice.me/software/minuimus.html  
-I created this repository primarily for my own personal use as I found the documentation of dependancies and command line options limited at the original source. I intend to improve documentation here and stay in sync with future updates.  
-As well, I currently have a working docker image for Minuimus that contains all dependancies, based on debian:slim. After further tweaks and improvements, it will be added here for public use.
+_Note about this repository:_ This is not the official repository. The original creator is known as CodeBird and can be found here: https://birds-are-nice.me/software/minuimus.html  
+This repository was created primarily for personal use, as documentation of dependancies and command line options were limited at the original source.
+As well, this will serve as a location for a docker image (based on Debian:slim) for Minuimus that contains all dependancies. This is currently undergoing testing and will be added here for public use in the future. Ideally a working image based on Alpine will be created as well.
 
 # minuimus.pl
 
@@ -13,18 +13,16 @@ As well, I currently have a working docker image for Minuimus that contains all 
     - [Dependencies](#dependencies)
       - [Optional Dependencies](#optional-dependencies)
 
-Minuimus is a file optimizer utility script: Point it at a file, and it transparently reduces filesize. It is dependent upon many other utilities for this, as well as some more specialised methods developed especially for it. Minuimus automates the process of calling upon all of these utilities—including the process of recursively processing container files and ensuring proper reassembly, detecting and handling the various errors that may occur, and running integrity checks on the optimized files to prevent damage.
+Minuimus is a file optimizer utility script. By default, it can be pointed to a file and it will transparently reduce the file size, leaving all pixels/text/audio/metadata intact. Using command line options, it can also run lossy optimizations and conversions. 
 
-Minuimus's optimizations are, by default, completely transparent: Not a single pixel of an image will be changed in value, no audio or video will fall in quality. Even metadata is preserved unaltered. It also supports a number of forms of lossy optimization, which must be explicitly enabled via command line option.
+Minuimus is primarily a Perl script, but three optional supporting binaries are available which are used for processing of PDF, WOFF and SWF files. These are written on Ubuntu, but should be adaptable to other Linux distributions with little to no alteration. Running on Windows would require substantial modification and testing.
 
-As Minuimus is entirely automated, simply install the prerequsites and run a single command to point Minuimus at the files to be optimized. It will optimize those files it can, and skip over those it cannot.
+As well as using it's own methods, Minuimus is dependent on many established utilities. Minuimus automates the process of calling all of these utilities—including recursively processing and reassembling container files (such as `zip`, `7z`, `ePub` and `docx`), detecting and handling any errors, and running integrity checks on the optimized files to prevent data loss. Based on which dependencies are installed, Minuimus will process all possible files, and skip those that have no compatible tool installed.
 
-Minuimus consists of a perl script and three optional supporting binaries which are used for the processing of PDF, WOFF and SWF files. These are written for use on Ubuntu Linux, but should be adaptable to other Linux distributions with little if any alteration. Running on Windows would require substantial modification and testing. These utilities are released under the GPL v3 license, as is Minuimus itself.
-
-When faced with files which are zip containers - such as zip, epub, or docx - it will extract these files, recursively process all of the files contained within them, and put them back together. In this manner it can make e-books and office documents substantially smaller.
-
-The exact space saving achieved by Minuimus is highly dependent upon the file being optimized. As is expected for any file optimizer, even after extensive testing, the results are too inconsistent to easily quantify. A collection of PDF files sampled from the-eye.eu was reduced in size to 90% of the input, while a half-terabyte sample taken from the archive.org 'computermagazine' collection was reduced with greater success to 78% of the input size. A collection of epub files from Project Gutenberg was reduced to a mere 95%, as these files are light on images, and ZIP files with no files inside which can be recursively optimized are reduced only very slightly, typically to around 97%.
-
+As is the case for any optimizer, the size reduction achieved by Minuimus is highly dependent upon the input data. Even after extensive testing, the results are too inconsistent to easily quantify. Despite that, here are some examples:
+- A collection of PDF files sampled from the-eye.eu was reduced by 10%
+- A 500GB sample from the archive.org 'computermagazine' collection was reduced by 22%
+- A collection of ePub files from Project Gutenberg was reduced by 5%, as these files are light on images, and ZIP files with no optimizable files inside are reduced only slightly, by about 3%
 
 ### Supported file types
 
@@ -72,8 +70,6 @@ STL models in ASCII form will be converted to binary form. This makes them a lot
 MP3 files will be repacked if that makes them smaller. Usually it doesn't - but some very old MP3s are poorly packed and might get a tiny bit smaller.
 ```
 
-If the utility [Leanify](https://github.com/JayXon/Leanify) is installed, it will also be used to augment Minuimus where possible. As both programs can support a few tricks that the other cannot, they work better in conjunction than either alone on certain files. Most significently, JPEG and formats containing JPEG.
-
 ### Command Line Options
 
 These options enable file format conversion and other non-transparent features, which will alter the format of your files in order further reduce filesize.
@@ -85,18 +81,18 @@ Note that these options chain together—eg. `--gif-png --png-to-webp` results i
 | `--rar-zip` | Converts .rar to .zip. Likely results in larger file, but allows processing of files within the rar. Converting to 7z likely superior. |
 | `--cbr-cbz` | Converts .cbr to .cbz. Likely creates a larger file, but allows image optimizations—resulting in ultimately smaller file. |
 | `--zip-7z` | Converts zip to 7z. Aborts if larger than the original. |
-| `--rar-7z` | Converts rar to 7z. Allows recursive optimizations. Aborts if larger than the original. <br/> .rar and .7z typically use different compression algorithms (Generally PPMd vs LZMA), but neither is superior for all data.<br/> 7z supports both, so Minuimus will compress with PPMd and LZMA seperately, and pick the smallest file. |
-| `--7z-7paq` | Convert 7z to zpaq. Aborts if larger than original. Still tries to optimize the 7z first. Zpaq is pretty much the highest-ratio archive-compresser that exists. |
+| `--rar-7z` | Converts rar to 7z. Allows recursive optimizations. Aborts if larger than the original. <br/> .rar and .7z typically use different compression algorithms (Generally PPMd vs LZMA), but neither is superior for all data.<br/> 7z supports both, so Minuimus will compress with PPMd and LZMA separately, and pick the smallest file. |
+| `--7z-7paq` | Convert 7z to zpaq. Aborts if larger than original. Still tries to optimize the 7z first. Zpaq is pretty much the highest-ratio archive-compressor that exists. |
 | `--webp-in-cbz` | Convert PNG files within CBZ to WebP. Resulting in substantially smaller files, but poor compatibility—many CBZ viewers wont open them. Maybe one day. |
 | `--jpg-webp` | Convert JPG to WebP. Uses the knusperli jpeg decoder. This process is lossy, but only very slightly, as it uses WebP quality 90.<br/> If the space saving is <10%, the conversion is rejected. |
 | `--jpg-webp-cbz` | Enables the above option when processing CBZ files. The space saving can be considerable, justifying the very slight loss of quality. |
 | `--misc-png` | Converts BMP and PCX files to PNG. |
 | `--keep-mod` | Preserve the modification time of files, even if they are altered. |
-| `--omni-<ext>` | Enables the 'omnicompressor' function for the specified file extension: Compress it with gzip, bzip2, lz, rz, 7z on PPMd and zpaq on max, and keep whichever is smallest.<br/> This is an extreme option for minimum filesize, no matter how long it takes. Intended for archival use.|
+| `--omni-<ext>` | Enables the 'omnicompressor' function for the specified file extension: Compress it with gzip, bzip2, lz, rz, 7z on PPMd and zpaq on max, and keep whichever is smallest.<br/> This is an extreme option for minimum file size, no matter how long it takes. Intended for archival use.|
 | `--iszip-<ext>` | Forces a specified extension to be processed as a ZIP file. |
 | `--video` | Enables lossy video recompression of legacy formats into WebM. For why you might want to do this, see the note in the source file. |
 | `--audio` | Enables compression of high-quality MP3 (>=256kbps) to Opus 128kbps. This will also apply within archive files, for converting albums. |
-| `--audio-agg` | With `--audio`, converts MP3 to very low-bitrate Opus. Sound quality suffers. Intended for voice, never music. Also reencodes .m4b files. All metadata preserved. |
+| `--audio-agg` | With `--audio`, converts MP3 to very low-bitrate Opus. Sound quality suffers. Intended for voice, never music. Also re-encodes .m4b files. All metadata preserved. |
 | `--discard-meta` | Discards metadata from image and PDF files. On PDF files can produce a considerable space saving! It only deletes the XML-based metadata, so the title remains. |
 | `--fix-ext` | Detects some common file types with the wrong extension, and corrects. |
 
@@ -119,11 +115,11 @@ Note that these options chain together—eg. `--gif-png --png-to-webp` results i
 #### Optional Dependencies
 
 - `ffmpeg` - required for MP3, FLAC and video processing
-- `flexigif` - additional GIF processing
-- `jbig2`- 
-- `jbig2dec` - 
-- `leanify` - additional JPEG, SWF, ICO and FB2 processing
-- `pdfsizeopt` - additional PDF processing
-  - `png22pnm` - dependancy for pdfsizeopt
-  - `sam2p` - dependancy for pdfsizeopt
-- `pngout` - additional PNG processing
+- `flexigif` - additional GIF processing ([Source](https://create.stephan-brumme.com/flexigif-lossless-gif-lzw-optimization/))
+- `jbig2`- required for JBIG2 processing ([Source](https://github.com/agl/jbig2enc))
+- `jbig2dec` - required for JBIG2 processing
+- `leanify` - additional JPEG, SWF, ICO and FB2 processing ([Source](https://github.com/JayXon/Leanify))
+- `pdfsizeopt` - additional PDF processing ([Source](https://github.com/pts/pdfsizeopt))
+  - `png22pnm` - dependency for pdfsizeopt ([Source](https://github.com/pts/tif22pnm))
+  - `sam2p` - dependency for pdfsizeopt ([Source](https://github.com/pts/sam2p))
+- `pngout` - additional PNG processing ([Source](https://jonof.id.au/kenutils.html), also available as part of pdfsizeopt install)
