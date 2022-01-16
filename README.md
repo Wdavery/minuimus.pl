@@ -1,5 +1,14 @@
 # minuimus.pl
 
+- [minuimus.pl](#minuimuspl)
+    - [Supported file types](#supported-file-types)
+      - [Transparent optimization](#transparent-optimization)
+      - [Non-transparent conversion](#non-transparent-conversion)
+      - [Description of processing](#description-of-processing)
+    - [Command Line Options](#command-line-options)
+    - [Dependencies](#dependencies)
+      - [Optional Dependencies](#optional-dependencies)
+
 Minuimus is a file optimizer utility script: Point it at a file, and it transparently reduces filesize. It is dependent upon many other utilities for this, as well as some more specialised methods developed especially for it. Minuimus automates the process of calling upon all of these utilities—including the process of recursively processing container files and ensuring proper reassembly, detecting and handling the various errors that may occur, and running integrity checks on the optimized files to prevent damage.
 
 Minuimus's optimizations are, by default, completely transparent: Not a single pixel of an image will be changed in value, no audio or video will fall in quality. Even metadata is preserved unaltered. It also supports a number of forms of lossy optimization, which must be explicitly enabled via command line option.
@@ -13,9 +22,9 @@ When faced with files which are zip containers - such as zip, epub, or docx - it
 The exact space saving achieved by Minuimus is highly dependent upon the file being optimized. As is expected for any file optimizer, even after extensive testing, the results are too inconsistent to easily quantify. A collection of PDF files sampled from the-eye.eu was reduced in size to 90% of the input, while a half-terabyte sample taken from the archive.org 'computermagazine' collection was reduced with greater success to 78% of the input size. A collection of epub files from Project Gutenberg was reduced to a mere 95%, as these files are light on images, and ZIP files with no files inside which can be recursively optimized are reduced only very slightly, typically to around 97%.
 
 
-## Supported file types
+### Supported file types
 
-#### Transparent optimization:
+#### Transparent optimization
 
 ```
 Images: JPEG TIFF PNG APNG GIF
@@ -24,7 +33,7 @@ Archives: ZIP 7Z GZ TGZ CAB
 Other: JAR WOFF FLAC SWF STL MP3
 ```
 
-#### Non-transparent conversion (Disabled unless explicitly specified):
+#### Non-transparent conversion
 
 ```
 CBR -> CBZ
