@@ -74,46 +74,27 @@ MP3 files will be repacked if that makes them smaller. Usually it doesn't - but 
 
 If the utility [Leanify](https://github.com/JayXon/Leanify) is installed, it will also be used to augment Minuimus where possible. As both programs can support a few tricks that the other cannot, they work better in conjunction than either alone on certain files. Most significently, JPEG and formats containing JPEG.
 
-Some further capabilities are disabled by default because they are not fully transparent, but can be enabled by command-line option:
-
-```
-Conversion of PNG within CBZ files into WebP. The resulting files are more compact, but not supported by all CBZ-viewing software. All conversions animation-safe.
-Conversion of all GIFs to PNG, or of PNGs to WebP, or of legacy image formats (bmp, pcx, tiff) to PNG. These do chain: GIF-to-PNG plus PNG-to-WebP results in GIF-to-WebP.
-Conversion of CBR to CBZ and RAR to ZIP. This doesn't compact files directly, but does enable the use of the optimisations appropriate for the converted file type.
-Conversion of RAR or ZIP files into 7Z, if doing so would result in smaller overall size (Which it usually does), using the same optimisations used for 7Z files.
-Conversion of 7z to ZPAQ likewise. ZPAQ is perhaps the highest-ratio compression container currently available for general usage.
-```
-
-Lossy multimedia operations
-
-Additionally, minuimus has the option (disabled by default) of converting certain legacy multimedia files into modern codecs - reducing their size greatly in the process. This is, however, an inherently lossy operation. The compression will be abandoned if it results in an output file of larger size than the input.
-
-```
-If video processing is enabled, video files using dated codecs such as DivX, XviD or MPEG1/2 will be converted to WebM using AV1 and Opus. The files will be compared in duration after encoding as a precaution against truncation due to damaged input files.
-If audio processing is enabled, MP3 files with a bitrate of 256kbps or above will be converted to 128kbps Opus. Both these bitrates are chosen as they are generally considered transparent for their respective codecs. The bitrate can be reduced with --audio-agg if processing speech only.
-Both of these also detect mono audio stored as stereo, and convert it to mono format for more efficient compression.
-```
-
 ### Command Line Options
 
 These options enable file format conversion and other non-transparent features, which will alter the format of your files in order further reduce filesize.
+Note that these options chain together—eg. `--gif-png --png-to-webp` results in .gif converted to .webp
 | Option | Description |
 | --- | --- |
-| `--gif-png` | Converts .gif files to .png, including animated gif to animated PNG. This will almost always result in a smaller file. |
-| `--png-webp` | Converts .png (Or, with above option, .gif) to .webp. Ignores animated PNG files. Aborts if the conversion would result in a larger file than the post-optimisation PNG. |
-| `--rar-zip` | Converts .rar to .zip. This will almost always make the file larger, but it does allow for the processing of files within the rar. Converting to 7z may be a better choice. |
-| `--cbr-cbz` | Converts .cbr to .cbz. This may make the file larger, but - as it allows for the use of the image-specific optimisations - usually makes them smaller. Also I just dislike RAR. |
-| `--zip-7z` | Converts zip to 7z, including recursive optimisations, but only if this results in a smaller file than the original. |
-| `--rar-7z` | Converts rar to 7z, including recursive optimisations, but only if this results in a smaller file than the original.<br/> .rar and .7z typically use different compression algorithms (Generally PPMd vs LZMA), but they are both sophisticated and neither is clearly superior for all data.<br/> Fortunately 7z supports both! So Minuimus will compress twice, once with LZMA and once with PPMd, and pick whichever performs best. So it'll almost always be smaller than RAR. |
-| `--7z-7paq` | Convert 7z to zpaq, only if this makes a smaller file. Still tries to optimize the 7z first. Zpaq is pretty much the highest-ratio archive-compresser that exists. |
-| `--webp-in-cbz` | Convert PNG files within CBZ to WebP. The resulting files will be very substantially smaller, but exhibit poor compatibility: Many CBZ viewers wont open them. Maybe one day. |
-| `--jpg-webp` | Convert JPG to WebP. Uses the knusperli jpeg decoder. This process is lossy, but only very slightly, as it uses WebP quality 90.<br/> If the space saving is less than 10% of the file size - which will be true for all but the highest-quality-setting JPEGs - then the conversion is rejected and original kept. |
+| `--gif-png` | Converts .gif files to .png, including animated gif to animated PNG. Likely results in a smaller file. |
+| `--png-webp` | Converts .png to .webp. Ignores animated PNGs. Aborts if the conversion results in a larger file than the optimized PNG. |
+| `--rar-zip` | Converts .rar to .zip. Likely results in larger file, but allows processing of files within the rar. Converting to 7z likely superior. |
+| `--cbr-cbz` | Converts .cbr to .cbz. Likely creates a larger file, but allows image optimizations—resulting in ultimately smaller file. |
+| `--zip-7z` | Converts zip to 7z. Aborts if larger than the original. |
+| `--rar-7z` | Converts rar to 7z. Allows recursive optimizations. Aborts if larger than the original. <br/> .rar and .7z typically use different compression algorithms (Generally PPMd vs LZMA), but neither is superior for all data.<br/> 7z supports both, so Minuimus will compress with PPMd and LZMA seperately, and pick the smallest file. |
+| `--7z-7paq` | Convert 7z to zpaq. Aborts if larger than original. Still tries to optimize the 7z first. Zpaq is pretty much the highest-ratio archive-compresser that exists. |
+| `--webp-in-cbz` | Convert PNG files within CBZ to WebP. Resulting in substantially smaller files, but poor compatibility—many CBZ viewers wont open them. Maybe one day. |
+| `--jpg-webp` | Convert JPG to WebP. Uses the knusperli jpeg decoder. This process is lossy, but only very slightly, as it uses WebP quality 90.<br/> If the space saving is <10%, the conversion is rejected. |
 | `--jpg-webp-cbz` | Enables the above option when processing CBZ files. The space saving can be considerable, justifying the very slight loss of quality. |
 | `--misc-png` | Converts BMP and PCX files to PNG. |
 | `--keep-mod` | Preserve the modification time of files, even if they are altered. |
-| `--omni-<ext>` | nables the 'omnicompressor' function for the specified file extension: Compress it with gzip, bzip2, lz, rz, 7z on PPMd and zpaq on max, and keep whichever is smallest.<br/> This is a somewhat extreme option, for desperate people who have a need to save every last byte, no matter how long it takes. It's intended for archival use.<br/> It's troublesome to extract, as whoever ends up with the files will probably need to install some software to do so. It's also unbelievably, ridiculously slow. |
+| `--omni-<ext>` | Enables the 'omnicompressor' function for the specified file extension: Compress it with gzip, bzip2, lz, rz, 7z on PPMd and zpaq on max, and keep whichever is smallest.<br/> This is an extreme option for minimum filesize, no matter how long it takes. Intended for archival use.|
 | `--iszip-<ext>` | Forces a specified extension to be processed as a ZIP file. |
-| `--video` | Enables lossy video recompression of legacy formats into WebM. For exactly why you might want to do this, see the note in the source file. |
+| `--video` | Enables lossy video recompression of legacy formats into WebM. For why you might want to do this, see the note in the source file. |
 | `--audio` | Enables compression of high-quality MP3 (>=256kbps) to Opus 128kbps. This will also apply within archive files, for converting albums. |
 | `--audio-agg` | With `--audio`, converts MP3 to very low-bitrate Opus. Sound quality suffers. Intended for voice, never music. Also reencodes .m4b files. All metadata preserved. |
 | `--discard-meta` | Discards metadata from image and PDF files. On PDF files can produce a considerable space saving! It only deletes the XML-based metadata, so the title remains. |
@@ -122,48 +103,27 @@ These options enable file format conversion and other non-transparent features, 
 ### Dependencies
 
 - `advancecomp`
-
 - `gif2apng`
-
 - `gifsicle`
-
 - `imagemagick-6.q16`
-
 - `jpegotim`
-
 - `libjpeg-progs`
-
 - `optipng`
-
 - `p7zip-full`
-
 - `poppler-utils`
-
 - `qpdf`
-
 - `unrar`
-
 - `webp`
-
 - `zip`
 
 #### Optional Dependencies
 
 - `ffmpeg` - required for MP3, FLAC and video processing
-
-- `flexigif` - additional for GIF processing
-
+- `flexigif` - additional GIF processing
 - `jbig2`- 
-
 - `jbig2dec` - 
-
 - `leanify` - additional JPEG, SWF, ICO and FB2 processing
-
 - `pdfsizeopt` - additional PDF processing
-  
-  - `png22pnm`
-  
-  - `sam2p`
-
+  - `png22pnm` - dependancy for pdfsizeopt
+  - `sam2p` - dependancy for pdfsizeopt
 - `pngout` - additional PNG processing
-
