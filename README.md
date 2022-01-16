@@ -115,11 +115,9 @@ Note that these options chain together—eg. `--gif-png --png-to-webp` results i
 #### Optional Dependencies
 
 - `ffmpeg` - required for MP3, FLAC and video processing
-- `flexigif` - additional GIF processing ([Source](https://create.stephan-brumme.com/flexigif-lossless-gif-lzw-optimization/))
+- `flexigif` - required for GIF processing ([Source](https://create.stephan-brumme.com/flexigif-lossless-gif-lzw-optimization/))
 - `jbig2`- required for JBIG2 processing ([Source](https://github.com/agl/jbig2enc))
 - `jbig2dec` - required for JBIG2 processing
 - `leanify` - additional JPEG, SWF, ICO and FB2 processing ([Source](https://github.com/JayXon/Leanify))
-- `pdfsizeopt` - additional PDF processing ([Source](https://github.com/pts/pdfsizeopt))
-  - `png22pnm` - dependency for pdfsizeopt ([Source](https://github.com/pts/tif22pnm))
-  - `sam2p` - dependency for pdfsizeopt ([Source](https://github.com/pts/sam2p))
+- `pdfsizeopt` - additional PDF processing ([Source](https://github.com/pts/pdfsizeopt)) (Installed to `/var/opt/pdfsizeopt/pdfsizeopt`–configurable in minuimus.pl)
 - `pngout` - additional PNG processing ([Source](https://jonof.id.au/kenutils.html), also available as part of pdfsizeopt install)
