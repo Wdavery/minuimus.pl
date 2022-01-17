@@ -44,23 +44,23 @@ MP3 >=256kbps -> Opus
 
 #### Description of processing
 All processing is only saved to disk if the processed file is smaller and changes are transparent.
-- `JPEG` files are processed by `jpegoptim`. If a color JPEG contains only grayscale values, empty color channels will be removed
-- `PNG` files are processed by `optipng`, then `advpng`, then `pngout`. Animated PNGs are processed by `optipng`, then `advdef`
-- `GIF` files are processed by `gifsicle`, then if  <100KiB, `flexigif`
-- `TIFF` files are re-compressed on highest setting supported by `imagemagick`
-- `JAR` files are only processed by `advzip`–altering the files within would invalidate any signing
-- `PDF` files are processed by `qpdf` to remove unused objects and versions, ensure a consistent format and correct minor errors. `JPEG` objects are processed by `jpegoptim`. DEFLATE compressed objects are processed by `minuimus_def_helper`. Unimportant metadata objects are deleted, main document metadata is retained unless `--discard-meta` is specified. Then the PDF is relinearised using `qpdf`. Original and optimized PDFs are rendered into bitmap and compared. Then processed by `pdfsizeopt`
-- `ZIP`, `DOCX`, `XLSX`, `ODT`, `ODS`, `ODP`, `EPUB` and `CBZ`–the ZIP-derived archive formats–are extracted and (non-archive) files within are processed individually, junk files such as Thumb.db and .ds_store are deleted, then recompressed into ZIP by `advzip`. The `mimetype` file is placed first using store-only compression in accordance with the EPUB OCF
-- `CBZ` files are processed additionally after standard ZIP compression by converting GIF, BMP, PCX and TIFF files within to (animation-safe) PNGs. Conversion from PNG to WebP is possible via command-line option (disabled by default  due to limited viewer support for WebP)
-- `GZ` and `TGZ` files are processed by `advdef`
 - `7Z` archives are extracted and files within processed, then recompressed using both LZMA and PPMd algorithms on highest practical settings. Whichever file is smallest is kept, unless the original file is smaller. Solid compression is not used
-- `WOFF` files are processed by a `Zopfli`-based recompressor.
-- `FLAC` files are re-encoded using the highest possible profile-compliant settings (slightly better than the regular -9). Metadata is preserved. Mono audio tracks encoded as stereo are converted to true mono
 - `CAB` - (Microsoft CAB) files will be repackaged if possible, but the savings are very small. Signed cabs are ignored
+- `CBZ` files are processed additionally after standard ZIP compression by converting GIF, BMP, PCX and TIFF files within to (animation-safe) PNGs. Conversion from PNG to WebP is possible via command-line option (disabled by default  due to limited viewer support for WebP)
+- `FLAC` files are re-encoded using the highest possible profile-compliant settings (slightly better than the regular -9). Metadata is preserved. Mono audio tracks encoded as stereo are converted to true mono
+- `GIF` files are processed by `gifsicle`, then if  <100KiB, `flexigif`
+- `GZ` and `TGZ` files are processed by `advdef`
 - `HTML`, `CSS` and `SVG` files are searched for any base64-encoded `JPG`, `PNG` or `WOFF` resources, which are optimized individually
-- `SWF` files will have internal `JPEG` and `PNG` objects recompressed, and the outer DEFLATE wrapper run through `zopfli`
-- `STL` models in ASCII form will be converted to binary form
+- `JAR` files are only processed by `advzip`–altering the files within would invalidate any signing
+- `JPEG` files are processed by `jpegoptim`. If a color JPEG contains only grayscale values, empty color channels will be removed
 - `MP3` files will be repacked
+- `PDF` files are processed by `qpdf` to remove unused objects and versions, ensure a consistent format and correct minor errors. `JPEG` objects are processed by `jpegoptim`. DEFLATE compressed objects are processed by `minuimus_def_helper`. Unimportant metadata objects are deleted, main document metadata is retained unless `--discard-meta` is specified. Then the PDF is relinearised using `qpdf`. Original and optimized PDFs are rendered into bitmap and compared. Then processed by `pdfsizeopt`
+- `PNG` files are processed by `optipng`, then `advpng`, then `pngout`. Animated PNGs are processed by `optipng`, then `advdef`
+- `STL` models in ASCII form will be converted to binary form
+- `SWF` files will have internal `JPEG` and `PNG` objects recompressed, and the outer DEFLATE wrapper run through `zopfli`
+- `TIFF` files are re-compressed on highest setting supported by `imagemagick`
+- `WOFF` files are processed by a `Zopfli`-based recompressor.
+- `ZIP` (and ZIP-derived formats:`CBZ`, `DOCX`, `EPUB`, `ODP`, `ODS`, `ODT`, and `XLSX`) are extracted and (non-archive) files within are processed individually, junk files such as Thumb.db and .ds_store are deleted, then recompressed into ZIP by `advzip`. The `mimetype` file is placed first using store-only compression in accordance with the EPUB OCF
 
 ### Command Line Options
 These options enable file format conversion and other non-transparent features, which will alter the format of your files in order further reduce filesize.
