@@ -5,9 +5,6 @@ As well, this will serve as a location for a docker image (based on Debian:slim)
 # minuimus.pl
 - [minuimus.pl](#minuimuspl)
     - [Supported file types](#supported-file-types)
-      - [Transparent optimization](#transparent-optimization)
-      - [Non-transparent conversion](#non-transparent-conversion)
-      - [Description of processing](#description-of-processing)
     - [Command Line Options](#command-line-options)
     - [Dependencies](#dependencies)
       - [Optional Dependencies](#optional-dependencies)
@@ -22,27 +19,6 @@ As is the case for any optimizer, the size reduction achieved by Minuimus is hig
 - A collection of ePub files from Project Gutenberg was reduced by 5%, as these files are light on images, and ZIP files with no optimizable files inside are reduced only slightly, by about 3%
 
 ### Supported file types
-#### Transparent optimization
-```
-Images: JPEG TIFF PNG GIF
-Documents: DOCX PPTX XLSX ODT ODS ODP EPUB PDF CBZ XPS
-Archives: ZIP 7Z GZ TGZ CAB
-Other: JAR WOFF FLAC SWF STL MP3
-```
-
-#### Non-transparent conversion
-```
-CBR -> CBZ
-RAR -> ZIP
-RAR -> 7z
-7z -> zpaq
-GIF -> PNG
-PNG -> WebP
-Legacy video -> WebM
-MP3 >=256kbps -> Opus
-```
-
-#### Description of processing
 All processing is only saved to disk if the processed file is smaller and changes are transparent.
 - `7Z` archives are extracted and files within processed, then recompressed using both LZMA and PPMd algorithms on highest practical settings. Whichever file is smallest is kept, unless the original file is smaller. Solid compression is not used
 - `CAB` - (Microsoft CAB) files will be repackaged if possible, but the savings are very small. Signed cabs are ignored
