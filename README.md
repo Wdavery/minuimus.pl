@@ -8,7 +8,7 @@ As well, this will serve as a location for a docker image (based on Debian:slim)
     - [Command Line Options](#command-line-options)
     - [Dependencies](#dependencies)
       - [Build Dependencies](#build-dependencies)
-      - [Hard Dependency](#jhard-dependency)
+      - [Hard Dependency](#hard-dependency)
       - [Core Dependencies](#core-dependencies)
       - [Optional Dependencies](#optional-dependencies)
 
