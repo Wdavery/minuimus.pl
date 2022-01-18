@@ -106,10 +106,15 @@
 #      Added a WebM repacker - I found too many dodgy WebMs in circulation with invalid timecodes, I think there must be a program out there that makes them.
 #      Removed --jpeg-keep-all from leanify call due to compatibility issues - it seems some versions of leanify don't recognise it.
 # 3.1  Fixed a stupid, stupid bug in PDF verification. A single-character typo that meant corruption could be potentially missed!
-#      Added the ability to convert RGB24 images to Y8 - the 'fake grey' where the pixels are 24-bit, but all of them are grey.
+#      Added the ability to convert RGB24 in PDF images to Y8 - the 'fake grey' where the pixels are 24-bit, but all of them are grey.
 # 3.2  Chained pdfsizeopt into the PDF chain. It's a complicated program to install, but it suppliments minuimus nicely.
 #      Added pngout into the png chain, but only if it's installed - it's not in the apt-get repository, so it's optional. It sometimes (though not usually) improves PNG compression further.
 #      Doesn't do animated PNG though.
+# 3.2.1  Minor compatibility improvements. Mostly moving from checking /usr/bin to using the 'which' command.
+#      This is to improve compatibility between distros, as not all put their utilities in the same place.
+#      Fixed typo in an error message.
+#      Leanify now processes SVG and PNG when discard-meta enabled.
+#      Fixed a bug in video reencode handling files with multiple audio - ffmpeg was dropping all but one track by default!
 
 use File::Spec;
 use File::Copy;
@@ -200,11 +205,14 @@ if($options{'help'}){
 #Imagemagick commands differ by distro. This should pick them up.
 my $im_identify='identify-im6';
 my $im_convert='convert-im6';
-(-f "/usr/bin/$im_identify") || {$im_identify='identify'};
-(-f "/usr/bin/$im_convert") || {$im_convert='convert'};
+`which $im_identify`;
+$? && {$im_identify='identify'};
+`which $im_convert`;
+$? && {$im_convert='convert'};
 
-if(! -f '/usr/bin/leanify'){
-  print("/usr/bin/leanify not found. This is not a serious problem: Minuimus does not require leanify, but if present, it will be used to augment minuimus's own methods. Minuimus together with Leanify can achieve better compression than either could achieve alone.\n");
+`which leanify`;
+if($?){
+  print("leanify not found. This is not a serious problem: Minuimus does not require leanify, but if present, it will be used to augment minuimus's own methods. Minuimus together with Leanify can achieve better compression than either could achieve alone.\n");
 }
 
 for (@files) {
@@ -233,7 +241,7 @@ sub compressfile($%) {
   }
   my $freespace=getfreespace();
   if($freespace < $initialsize/256){
-    print("Possible insufficient free space on $tmpfolder - aborting. Will not attempt to process a file withou 2x file size free. File $initialsize, free $freespace.\n");
+    print("Possible insufficient free space on $tmpfolder - aborting. Will not attempt to process a file without 2x file size free. File $initialsize, free $freespace.\n");
     return;
   }
   my $oldtime;
@@ -301,6 +309,7 @@ sub compressfile($%) {
  
   if ($ext eq 'jpg' || $ext eq 'jpeg' || $ext eq 'jfif') {
     process_jpeg($file, $options{'discard-meta'});
+    leanify($file, $options{'discard-meta'});
     if($options{'jpg-webp'}){
       $file=jpeg2webp($file);
       $ext=lc($file);
@@ -334,6 +343,7 @@ sub compressfile($%) {
   if ($ext eq 'svg' ||
       $ext eq 'css'){
     optimise_base64_file($file);
+      $options{'discard-meta'} && leanify($file);
   }
   if ($ext eq 'jar') { #Not going to take these apart, too much risk of breaking things.
     testcommand('advzip');
@@ -489,8 +499,8 @@ sub process_jpeg($$$){
       print "  JPEG is greyscale but encoded as color. Converting to true greyscale if this reduces usage.\n";
       $grey='-grayscale';
   }
-  if((-f '/usr/bin/jpegtran') ||
-     (-f '/bin/jpegtran')){
+  `which jpegtran`;
+  if($?){
     `jpegtran -optimize -progressive -copy $copytype $grey "$file" > $tempfile`;
     my $before = -s $file;
     my $after = -s $tempfile;
@@ -975,7 +985,8 @@ sub compress_png() {
     system('advdef', '-z4', '-q', $file);
   } else {
     system('advpng', '-z4', '-q', $file);
-    (-f '/usr/bin/pngout') && system('pngout', $file);
+    `which pngout`;
+    $? || system('pngout', $file);
   }
 }
 
@@ -1074,7 +1085,8 @@ sub compress_gif(){
 
   my $befores = -s $file;
 
-  if ((! -X '/usr/bin/flexiGIF') || $befores>102400) {
+  `which flexiGIF`;
+  if ($? || $befores>102400) {
     # FlexiGIF is a optional thing, mostly because it's not in the ubuntu
     # apt-get repository.
     return;
@@ -1427,10 +1439,11 @@ sub pdfsizeopt(){
   my $tempfile="$tmpfolder/minu-sizeopt-$$-$counter.pdf";
   $counter++;
   my $optimisers='--use-image-optimizer=optipng,advpng';
-  if(-e '/usr/bin/pngout') {$optimisers = $optimisers.",pngout";}
-  if(-e '/usr/bin/jbig2') {$optimisers = $optimisers.",jbig2";}
+  `which pngout`;
+  if(! $?) {$optimisers = $optimisers.",pngout";}
+  `which jbig2`;
+  if(! $?) {$optimisers = $optimisers.",jbig2";}
   print("  Invoking pdfsizeopt ($optimisers)\n");
- 
   system($pdfsizeoptpath, '--quiet', $optimisers, $in_file, $tempfile);
   if((-s $tempfile) == 0){
     print("    pdfsizeopt failed.\n");
@@ -1457,13 +1470,13 @@ sub is_pdfsizeopt_installed(){
   testcommand('optipng');
   testcommand('advpng');
   if((-e $pdfsizeoptpath) &&
-     (-e '/usr/bin/png22pnm') &&
-     (-e '/usr/bin/sam2p')){
+     !system('which', 'png22pnm') &&
+     !system('which', 'sam2p')){
     $pdfsizeopt=2;
     return(1);
   }
   $pdfsizeopt=1;
-  print("  pdfsizeopt or supporting programs (png22png and sam2p) not installed. It's a fiddly program to set up - you will need to install png22pnm as well, and none of this is apt-getable.\n");
+  print("  pdfsizeopt or supporting programs (png22pnm and sam2p) not installed. It's a fiddly program to set up - you will need to install png22pnm as well, and none of this is apt-getable.\n");
   print("  If it were installed, some additional size reduction may be possible.\n");
   return(0);
 }
@@ -1684,7 +1697,8 @@ sub omnicompress(){
 sub testcommand($){
   my $totest=$_[0];
   if($testedcommands{$totest}){return;}
-  if(-X "/usr/bin/$totest" || -X "/bin/$totest" || -X "/usr/local/bin/$totest"){
+  `which $totest`;
+   if(! $?){
     $testedcommands{$totest}=1;
     return;
   }
@@ -1974,7 +1988,7 @@ sub processvideo(){
   }
   my $tempfile="$tmpfolder/video$$-$counter.webm";
   $counter++;
-  my @args=('ffmpeg', '-i', $oldname);
+  my @args=('ffmpeg', '-i', $oldname, '-map', '0');  
   my $subname=substr($oldname, 0, rindex($oldname, '.')).'.srt';
   #  push(@args, '-strict', '-2');
 
@@ -2292,13 +2306,14 @@ sub fix_proper_ext($){
 
 sub leanify($){
   my $file=$_[0];
-
-  -f '/usr/bin/leanify' || return; #Leanify is not installed.
+  my $discard_meta=$_[1];
+  `which leanify`;
+  $? && return; #Leanify is not installed.
   #Leanify is powerful, but a bit more intrusive than minuimus's defaults.
   #There's a reason minuimus's more aggressive features all need to be enabled by command line option.
   #So leanify is to be invoked upon certain formats only.
   #Specifically, not upon APK or JAR (for it screws with signing), upon HTML (Because what it does, minuimus does already),
-  #upon upon SVG (it removes metadata), upon archive files (Duplicates minuimus's own functions) or upon XML (deletes comments).
+  #Upon SVG (it removes metadata), upon archive files (Duplicates minuimus's own functions) or upon XML (deletes comments).
   #Or PNG (Deletes metadata. Plus the things it does, optipng and advpng already did.)
   #But it does work well at optimising JPEGs - and I really can't figure out what magic it's using, other than that it outdoes minuimus alone.
   #(But doesn't do the grey conversion: That's a minuimus-specific trick, no-one else thought of that!)
@@ -2309,7 +2324,10 @@ sub leanify($){
   if(! -f $tempfile){
     die("  Failed when copying to $tmpfolder - possible permissions or free space issue. Terminating.");
   }
-  my $ret=system('/usr/bin/leanify', '-q', '--keep-icc', '--keep-exif', $file);
+    my @leanify_parms = ('leanify', '-q', '--keep-icc');
+  $discard_meta && push(@leanify_parms, '--keep-exif');
+  push(@leanify_parms, $file);
+  my $ret=system(@leanify_parms);
   my $presize = -s $tempfile;
   my $postsize = -s $file;
   if($ret || ($postsize > $presize) || (-s $file == 0)){
