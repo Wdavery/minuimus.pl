@@ -217,11 +217,6 @@ $? && {$im_identify='identify'};
 `which $im_convert`;
 $? && {$im_convert='convert'};
 
-`which leanify`;
-if($?){
-  print("leanify not found. This is not a serious problem: Minuimus does not require leanify, but if present, it will be used to augment minuimus's own methods. Minuimus together with Leanify can achieve better compression than either could achieve alone.\n");
-}
-
 for (@files) {
   if(-f $_){
     compressfile($_, \%options);
