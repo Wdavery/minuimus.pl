@@ -8,7 +8,7 @@ apt-get install -qy \
  curl \
  g++ \
  gcc \
- libz-dev \
+ zlib1g-dev \
  make \
  wget && \
 echo "************************************************************" && \
@@ -77,7 +77,7 @@ apt-get purge -qy \
  curl \
  gcc \
  g++ \
- libz-dev \
+ zlib1g-dev \
  make \
  wget && \
 apt-get autoremove -qy && \
