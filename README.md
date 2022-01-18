@@ -14,7 +14,9 @@ As well, this will serve as a location for a docker image (based on Debian:slim)
 
 Minuimus is a file optimizer utility script written in Perl. By default, it can be pointed to a file and it will transparently reduce the file size, leaving all pixels/text/audio/metadata intact. Using command line options, it can also run lossy optimizations and conversions.
 
-As well as using it's own methods and four optional supporting binaries (for `PDF`, `WOFF`, `SWF` and `CAB` files), Minuimus is dependent on many established utilities. It automates the process of calling all of these utilities—including recursively processing and reassembling container files (such as `ZIP`, `EPUB` and `DOCX`), detecting and handling any errors, and running integrity checks on the optimized files to prevent data loss. Based on which dependencies are installed, Minuimus will process files the best it can, and skip those that have no compatible tool installed.
+As well as using it's own methods and four optional supporting binaries, Minuimus is dependent on many established utilities. 
+It automates the process of calling all of these utilities—including recursively processing and reassembling container files (such as `ZIP`, `EPUB` and `DOCX`), detecting and handling any errors, and running integrity checks on the optimized files to prevent data loss. 
+Based on which dependencies are installed, Minuimus will process files the best it can, and skip those that have no compatible tool installed.
 
 As is the case for any optimizer, the size reduction achieved by Minuimus is highly dependent upon the input data. Even after extensive testing, the results are too inconsistent to easily quantify. Despite that, here are some examples:
 - A collection of PDF files sampled from the-eye.eu was reduced by 10%
