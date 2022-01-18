@@ -7,6 +7,9 @@ As well, this will serve as a location for a docker image (based on Debian:slim)
     - [Supported file types](#supported-file-types)
     - [Command Line Options](#command-line-options)
     - [Dependencies](#dependencies)
+      - [Build Dependencies](#build-dependencies)
+      - [Hard Dependency](#jhard-dependency)
+      - [Core Dependencies](#core-dependencies)
       - [Optional Dependencies](#optional-dependencies)
 
 Minuimus is a file optimizer utility script written in Perl. By default, it can be pointed to a file and it will transparently reduce the file size, leaving all pixels/text/audio/metadata intact. Using command line options, it can also run lossy optimizations and conversions.
@@ -66,27 +69,45 @@ Note that these options chain together—eg. `--gif-png --png-to-webp` results i
 
 ### Dependencies
 Minuimus and it's supporting binaries are written on Ubuntu, but should be adaptable to other Linux distributions with little to no alteration. Running on Windows would require substantial modification and testing.
-- `advancecomp`
-- `gif2apng`
-- `gifsicle`
-- `imagemagick-6.q16`
-- `jpegotim`
-- `libjpeg-progs`
-- `optipng`
-- `p7zip-full`
-- `poppler-utils`
-- `qpdf`
-- `unrar`
-- `webp`
-- `zip`
+#### Build Dependencies
+- `gcc`
+- `libz-dev` - required for **[❗️PLACEHOLDER❗️]** (at least one of the supporting binaries)
+- `make`
+
+#### Hard Dependency
+- `perl` - required for running minuimus.pl 
+
+#### Core Dependencies
+Nearly all dependencies of Minuimus are technically optional, depending on what file types will be processed.  
+Missing core dependencies will cause Minuimus to exit if processing a relevant file type is attempted.  
+⭐️ = Minimum recommended for base-level usage
+
+- `advancecomp`⭐️ - required for GZ, PNG, TGZ, and ZIP-derived format processing
+- `cabextract` - required for CAB processing
+- `ffmpeg` - required for MP3, FLAC, WEBM and video processing
+- `file` - required for `--fix-ext` and `cbr-cbz` options
+- `gif2apng` - required for `--gif-png` option
+- `gifsicle`⭐️ - required for GIF processing
+- `imagemagick-6.q16`⭐️ - required for GIF, JPEG, TIFF
+- `jpegotim`⭐️ - required for JPEG processing
+- `libjpeg-progs`⭐️ - required for JPEG processing
+- `optipng`⭐️ - required for PNG processing
+- `p7zip-full`⭐️ - required for 7z processing
+- `poppler-utils`⭐️ - required for PDF processing
+- `qpdf`⭐️ - required for PDF processing
+- `unrar` - required for `--rar-7z` and `--rar-zip` options
+- `webp` - required for `--jpeg-webp` and `--png-webp` options
+- `zip`⭐️ - required for ZIP-derived format processing
 
 #### Optional Dependencies
-- `ffmpeg` - required for MP3, FLAC and video processing
-- `flexigif` - required for GIF processing ([Source](https://create.stephan-brumme.com/flexigif-lossless-gif-lzw-optimization/))
-- `jbig2`- required for JBIG2 processing within PDFs ([Source](https://github.com/agl/jbig2enc), also available as part of pdfsizeopt install)
-- `jbig2dec` - required for JBIG2 processing within PDFs
+Optional dependencies will be used if installed, and skipped if not
+- `cab_analyze` - additional CAB processing (Optional part of Minuimus install)
+- `flexigif` - additional GIF processing ([Source](https://create.stephan-brumme.com/flexigif-lossless-gif-lzw-optimization/))
+- `jbig2`- additional PDF processing ([Source](https://github.com/agl/jbig2enc), also available as part of pdfsizeopt install)
+- `jbig2dec` - additional PDF processing
 - `leanify` - additional JPEG, SWF, ICO and FB2 processing ([Source](https://github.com/JayXon/Leanify))
-- `pdfsizeopt` - additional PDF processing ([Source](https://github.com/pts/pdfsizeopt)) (Installed to `/var/opt/pdfsizeopt/pdfsizeopt`–configurable in minuimus.pl)
+- `minuimus_def_helper` - additional PDF processing (Optional part of Minuimus install)
+- `minuimus_swf_helper` - additional SWF processing (Optional part of Minuimus install)
+- `minuimus_woff_helper` - additional WOFF processing (Optional part of Minuimus install)
+- `pdfsizeopt` - additional PDF processing ([Source](https://github.com/pts/pdfsizeopt)) (Installed to `/var/opt/pdfsizeopt/pdfsizeopt`, configurable in minuimus.pl)
 - `pngout` - additional PNG processing ([Source](https://jonof.id.au/kenutils.html), also available as part of pdfsizeopt install)
-
-
