@@ -134,18 +134,9 @@ my $pdfsizeopt;
 my $pdfsizeoptpath='/var/opt/pdfsizeopt/pdfsizeopt';
 
 if (!@ARGV) {
-  print("  minuimus.pl: condēnstor optimum tardissimum.\n\n  The best, slowest, compresser.\n", #Condēnsō with -tor suffix. New Latin, I can make up words if I want to.
-        "  Minuimus makes files smaller, while leaving them functionally equivilent. It does this in a completely transparent manner - the smaller file is functionally equivilent to the original, and may be substituted for it without issue.\n",
-        "  It does this by calling upon a number of compression utilities: The AdvanceCOMP suite, optipng, jpegoptim, gifsicle, flexigif, qpdf, and several others.\n",
-        "  While you could just call these directly, minuimus can go one level better: It not only selects the right utility for each file, it will also extract the contents of zip and zip-like files such as epub or docx, and apply those utilities to all the files within as well. It even checks for animated PNG files and ensure only animation-safe utilities (ie, not advpng) are used.\n\n  It validates files after processing, comparing and looking for potential errors and unusual cases, automating the process from start to end. You need only point it to your files, wait, and watch them shrink.\n\n");
-  print("    minuimus.pl <file> [file] [file] ... [file]\n");
-  print("  For processing large numbers of files, use find:\n   find <target> -type f -print0|xargs -0 -P <threads> -n 8 minuimus.pl\n  or\n   find <target> -type f -print0|parallel -0 -n 4 minuimus.pl\n\n",
-        "  Supported types:\n  png jpg/jpeg gif tiff\n  zip epub docx xlsx jar cbz xps\n  pdf woff\n  gz tgz\n  flac swf\n",
-        "  Unsupported extensions will be ignored.\n\n",
-        "  minuimus.pl requires a number of supporting binaries, and will exit if a required component is missing. Most of these should be obtainable via your distribution's package managment. It also has supporting binary files (supplied as C code) which are not required to run minuimus, but will increase its capabilities. For full installation instructions, see the README file.\n",
-        "  For a full description of miniumus's operation and how each file type is optimised, see https://birds-are-nice.me/software/minuimus.html\n",
-        "  For ubuntu, 'make deps', 'sudo make install', then fetch flexigif from https://create.stephan-brumme.com/flexigif-lossless-gif-lzw-optimization/\n\n",
-        "  Minuimus is also capable of automating the conversion of many file types to more compact equivilents, but this ability is not transparent and so is not enabled by default. View 'minuimus.pl --help' to see the options for enabling these type conversions. \n\n");
+  print("  minuimus.pl: condēnstor optimum tardissimum.\n  The best, slowest, compresser.\n");, #Condēnsō with -tor suffix. New Latin, I can make up words if I want to.
+  print("     minuimus.pl <file> [file] [file] ... [file]\n or\n   minuimus.pl *.[ext]");
+  print("  For processing large numbers of files, use find:\n   find <target> -type f -print0|xargs -0 -P <threads> -n 8 minuimus.pl\n  or\n   find <target> -type f -print0|parallel -0 -n 4 minuimus.pl\n\n");
   exit(0);
 }
 
