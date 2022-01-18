@@ -134,7 +134,7 @@ my $pdfsizeopt;
 my $pdfsizeoptpath='/var/opt/pdfsizeopt/pdfsizeopt';
 
 if (!@ARGV) {
-  print("  minuimus.pl: condēnstor optimum tardissimum.\n  The best, slowest, compresser.\n");, #Condēnsō with -tor suffix. New Latin, I can make up words if I want to.
+  print("  minuimus.pl: condēnstor optimum tardissimum.\n  The best, slowest, compresser.\n"); #Condēnsō with -tor suffix. New Latin, I can make up words if I want to.
   print("     minuimus.pl <file> [file] [file] ... [file]\n or\n   minuimus.pl *.[ext]");
   print("  For processing large numbers of files, use find:\n   find <target> -type f -print0|xargs -0 -P <threads> -n 8 minuimus.pl\n  or\n   find <target> -type f -print0|parallel -0 -n 4 minuimus.pl\n\n");
   exit(0);
