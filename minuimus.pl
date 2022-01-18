@@ -185,6 +185,20 @@ if($options{'version'}){
         "Additional changes by Wdavery\n");
   exit(0);
 }
+
+if($options{'check-deps'}){
+    @deps = ("7z","advdef","advpng","advzip","brotli","bzip","cab_analyze","cabextract","cwebp",
+            "ffmpeg","ffprobe","file","flac","flexigif","gif2apng","gifsicle","gzip","im_identify",
+            "im_convert","jbig2","jbig2dec","jpegoptim","jpegtran","knusperli","leanify","lzip",
+            "minuimus_def_helper","minuimus_swf_helper","minuimus_woff_helper","optipng",
+            "/var/opt/pdfsizeopt/pdfsizeopt","pdftoppm","pngout","poppler-utils","qpdf","rzip",
+            "unrar","webp","zip","zpaq");
+    foreach (@deps)
+    {
+        depcheck($_);
+    }
+}
+
 #If you're looking for the note on why these's a video mode: Error detection, in short. All it does really is run ffmpeg, but use this script and you get the benefit of some fancier integrity checking.
 #It'll compare the length in seconds of video before and after, so there's no chance of losing material because of a corrupted input file causing the encoder to crash.
 #Added bonus: If it finds an SRT file with the same name, it'll automatically include that too! Can't set the language tag though.
@@ -206,6 +220,16 @@ for (@files) {
   if(-f $_){
     compressfile($_, \%options);
   }
+}
+
+sub depcheck($){
+  my $totest=$_[0];
+  `which $totest`;
+   if(! $?){
+         print("✅ $totest\n");
+    return;
+  }
+  print("❌ $totest\n");
 }
 
 sub compressfile($%) {
