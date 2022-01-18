@@ -110,7 +110,8 @@
 # 3.2  Chained pdfsizeopt into the PDF chain. It's a complicated program to install, but it suppliments minuimus nicely.
 #      Added pngout into the png chain, but only if it's installed - it's not in the apt-get repository, so it's optional. It sometimes (though not usually) improves PNG compression further.
 #      Doesn't do animated PNG though.
-# 3.2.1  Minor compatibility improvements. Mostly moving from checking /usr/bin to using the 'which' command.
+# 3.2.1 (2022-01-18)
+#  Minor compatibility improvements. Mostly moving from checking /usr/bin to using the 'which' command.
 #      This is to improve compatibility between distros, as not all put their utilities in the same place.
 #      Fixed typo in an error message.
 #      Leanify now processes SVG and PNG when discard-meta enabled.
@@ -191,6 +192,12 @@ if($options{'help'}){
         "  --audio-agg    With --audio, converts MP3 to very low-bitrate Opus. Sound quality suffers. Intended for voice, never music. Also reencodes .m4b files. All metadata preserved.\n",
         "  --discard-meta Discards metadata from image and PDF files. On PDF files can produce a considerable space saving! It only deletes the XML-based metadata, so the title remains.\n",
         "  --fix-ext      Detects some common file types with the wrong extension, and corrects.\n\n");
+  exit(0);
+}
+if($options{'version'}){
+  print("Minuimus.pl - version 3.2.1 (2022-01-18)\n",
+        "Written by Codebird\n",
+        "Additional changes by Wdavery");
   exit(0);
 }
 #If you're looking for the note on why these's a video mode: Error detection, in short. All it does really is run ffmpeg, but use this script and you get the benefit of some fancier integrity checking.
@@ -344,7 +351,7 @@ sub compressfile($%) {
       $ext eq 'css'){
     optimise_base64_file($file);
       $options{'discard-meta'} && leanify($file);
-  }
+}
   if ($ext eq 'jar') { #Not going to take these apart, too much risk of breaking things.
     testcommand('advzip');
     system('advzip', '-z4k', '-q', $file);
@@ -1087,7 +1094,7 @@ sub compress_gif(){
 
   `which flexiGIF`;
   if ($? || $befores>102400) {
-    # FlexiGIF is a optional thing, mostly because it's not in the ubuntu
+        # FlexiGIF is a optional thing, mostly because it's not in the ubuntu
     # apt-get repository.
     return;
   }
@@ -1699,7 +1706,7 @@ sub testcommand($){
   if($testedcommands{$totest}){return;}
   `which $totest`;
    if(! $?){
-    $testedcommands{$totest}=1;
+         $testedcommands{$totest}=1;
     return;
   }
   print("Minuimus requires $totest. Install dependency or 'make deps' and retry.\n");
@@ -2309,7 +2316,7 @@ sub leanify($){
   my $discard_meta=$_[1];
   `which leanify`;
   $? && return; #Leanify is not installed.
-  #Leanify is powerful, but a bit more intrusive than minuimus's defaults.
+    #Leanify is powerful, but a bit more intrusive than minuimus's defaults.
   #There's a reason minuimus's more aggressive features all need to be enabled by command line option.
   #So leanify is to be invoked upon certain formats only.
   #Specifically, not upon APK or JAR (for it screws with signing), upon HTML (Because what it does, minuimus does already),
@@ -2328,7 +2335,7 @@ sub leanify($){
   $discard_meta && push(@leanify_parms, '--keep-exif');
   push(@leanify_parms, $file);
   my $ret=system(@leanify_parms);
-  my $presize = -s $tempfile;
+    my $presize = -s $tempfile;
   my $postsize = -s $file;
   if($ret || ($postsize > $presize) || (-s $file == 0)){
     print("  Leanify appears to have gone wrong, restoring original file.\n  Return was $ret.");
