@@ -111,7 +111,7 @@
 #      Added pngout into the png chain, but only if it's installed - it's not in the apt-get repository, so it's optional. It sometimes (though not usually) improves PNG compression further.
 #      Doesn't do animated PNG though.
 # 3.2.1 (2022-01-18)
-#  Minor compatibility improvements. Mostly moving from checking /usr/bin to using the 'which' command.
+#      Minor compatibility improvements. Mostly moving from checking /usr/bin to using the 'which' command.
 #      This is to improve compatibility between distros, as not all put their utilities in the same place.
 #      Fixed typo in an error message.
 #      Leanify now processes SVG and PNG when discard-meta enabled.
