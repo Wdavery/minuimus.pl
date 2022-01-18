@@ -2310,6 +2310,9 @@ sub leanify($){
   my $file=$_[0];
   my $discard_meta=$_[1];
   `which leanify`;
+  if($?){
+  print("leanify not found. Not required, but will further decrease file size. Minuimus and Leanify achieve better compression together than either does alone.\n");
+  }
   $? && return; #Leanify is not installed.
     #Leanify is powerful, but a bit more intrusive than minuimus's defaults.
   #There's a reason minuimus's more aggressive features all need to be enabled by command line option.
