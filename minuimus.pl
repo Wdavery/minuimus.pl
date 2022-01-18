@@ -188,7 +188,7 @@ if($options{'help'}){
 if($options{'version'}){
   print("Minuimus.pl - version 3.2.1 (2022-01-18)\n",
         "Written by Codebird\n",
-        "Additional changes by Wdavery");
+        "Additional changes by Wdavery\n");
   exit(0);
 }
 #If you're looking for the note on why these's a video mode: Error detection, in short. All it does really is run ffmpeg, but use this script and you get the benefit of some fancier integrity checking.
