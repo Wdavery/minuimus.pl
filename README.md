@@ -73,7 +73,7 @@ Note that these options chain together—eg. `--gif-png --png-to-webp` results i
 Minuimus and it's supporting binaries are written on Ubuntu, but should be adaptable to other Linux distributions with little to no alteration. Running on Windows would require substantial modification and testing.
 #### Build Dependencies
 - `gcc`
-- `libz-dev` - required for **[❗️PLACEHOLDER❗️]** (at least one of the supporting binaries)
+- `libz-dev` - required for `minuimus_def_helper`, `minuimus_swf_helper`, and `minuimus_woff_helper` 
 - `make`
 
 #### Hard Dependency
