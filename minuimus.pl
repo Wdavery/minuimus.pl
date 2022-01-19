@@ -162,6 +162,7 @@ if($options{'help'}){
         "--audio-agg     With --audio, converts MP3 to very low-bitrate OPUS. Sound quality suffers. Intended for voice, never music. Also re-encodes .m4b files.\n                All metadata preserved\n",
         "--audio         Enables compression of high-quality MP3 (>=256kbps) to OPUS 128kbps. This will also apply within archive files, for converting albums\n",
         "--cbr-cbz       Converts CBR to CBZ. Likely creates a larger file, but allows image optimizations—resulting in ultimately smaller file\n",
+        "--check-deps    Checks for all core and optional dependencies. Actually checks for each individually called command \n",
         "--discard-meta  Discards metadata from image and PDF files. Can produce considerable savings for PDF. It only deletes the XML-based metadata, so the title remains\n",
         "--fix-ext       Detects some common file types with the wrong extension, and corrects\n",
         "--gif-png       Converts GIF files to PNG, including animated GIF to animated PNG. Likely results in a smaller file\n",
