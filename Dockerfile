@@ -15,23 +15,29 @@ echo "************************************************************" && \
 echo "**** install required and optional packages ****" && \
  apt-get install -qy \
  advancecomp \ 
+ brotli \
+ bzip2 \
  cabextract \
  ffmpeg \
  file \
+ flac \
  gif2apng \
  gifsicle \
  imagemagick-6.q16 \
  jbig2dec \
  jpegoptim \
  libjpeg-progs \
+ lzip \
  optipng \
  p7zip-full \
  perl \
  poppler-utils \
  qpdf \
+ rzip \
  unrar-free \
  webp \
- zip && \
+ zip \
+ zpaq && \
 echo "************************************************************" && \
 echo "**** compile minuimus and extras ****" && \
 mkdir -p /tmp/minuimus-src && \
