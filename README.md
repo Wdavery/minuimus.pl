@@ -53,7 +53,7 @@ Note that these options chain together—eg. `--gif-png --png-to-webp` results i
 | `--audio-agg`    | With `--audio`, converts `MP3` to very low-bitrate `OPUS`. Sound quality suffers. Intended for voice, never music. Also re-encodes .m4b files. All metadata preserved                                                                         |
 | `--audio`        | Enables compression of high-quality `MP3` (>=256kbps) to `OPUS` 128kbps. This will also apply within archive files, for converting albums                                                                                                     |
 | `--cbr-cbz`      | Converts `CBR` to `CBZ`. Likely creates a larger file, but allows image optimizations—resulting in ultimately smaller file                                                                                                                    |
-| `--check-deps`   | Checks for all core and optional dependencies. Actually checks for each individually called command                                                                                                                                           |
+| `--check-deps`   | Checks for all core and optional dependencies (Actually checks for each called command individually)                                                                                                                                           |
 | `--discard-meta` | Discards metadata from image and `PDF` files. Can produce considerable savings for `PDF`. It only deletes the XML-based metadata, so the title remains                                                                                        |
 | `--fix-ext`      | Detects some common file types with the wrong extension, and corrects                                                                                                                                                                         |
 | `--gif-png`      | Converts `GIF` files to `PNG`, including animated `GIF` to animated `PNG`. Likely results in a smaller file                                                                                                                                   |
@@ -73,8 +73,9 @@ Note that these options chain together—eg. `--gif-png --png-to-webp` results i
 ### Dependencies
 Minuimus and it's supporting binaries are written on Ubuntu, but should be adaptable to other Linux distributions with little to no alteration. Running on Windows would require substantial modification and testing.
 #### Build Dependencies
+These are only required to use the makefile to build and install the `minuimus_***_helper` and `cab_analyze` binaries. As a perl script, `minuimus.pl` requires no compiliation and can be installed anywhere as is.
 - `gcc`
-- `libz-dev` - required for `minuimus_def_helper`, `minuimus_swf_helper`, and `minuimus_woff_helper` 
+- `libz-dev` - required for `minuimus_***_helper` binaries 
 - `make`
 
 #### Hard Dependency
@@ -83,6 +84,8 @@ Minuimus and it's supporting binaries are written on Ubuntu, but should be adapt
 #### Core Dependencies
 Nearly all dependencies of Minuimus are technically optional, depending on what file types will be processed.  
 Missing core dependencies will cause Minuimus to exit if processing a relevant file type is attempted.  
+Run `minuimus.pl --check-deps` will output a list of all called commands, indicating if each is found or missing.  
+
 ⭐ = Minimum recommended for base-level usage
 
 - `advancecomp`⭐ - required for GZ, PNG, TGZ, and ZIP-derived format processing
