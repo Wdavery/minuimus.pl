@@ -82,24 +82,31 @@ Minuimus and it's supporting binaries are written on Ubuntu, but should be adapt
 #### Core Dependencies
 Nearly all dependencies of Minuimus are technically optional, depending on what file types will be processed.  
 Missing core dependencies will cause Minuimus to exit if processing a relevant file type is attempted.  
-⭐️ = Minimum recommended for base-level usage
+⭐ = Minimum recommended for base-level usage
 
-- `advancecomp`⭐️ - required for GZ, PNG, TGZ, and ZIP-derived format processing
+- `advancecomp`⭐ - required for GZ, PNG, TGZ, and ZIP-derived format processing
+- `brotli` - required for `--omni-<ext>` option
+- `bzip2` - required for `--omni-<ext>` option
 - `cabextract` - required for CAB processing
 - `ffmpeg` - required for MP3, FLAC, WEBM and video processing
 - `file` - required for `--fix-ext` and `cbr-cbz` options
 - `gif2apng` - required for `--gif-png` option
-- `gifsicle`⭐️ - required for GIF processing
-- `imagemagick-6.q16`⭐️ - required for GIF, JPEG, TIFF
-- `jpegotim`⭐️ - required for JPEG processing
-- `libjpeg-progs`⭐️ - required for JPEG processing
-- `optipng`⭐️ - required for PNG processing
-- `p7zip-full`⭐️ - required for 7z processing
-- `poppler-utils`⭐️ - required for PDF processing
-- `qpdf`⭐️ - required for PDF processing
+- `gifsicle`⭐ - required for GIF processing
+- `gzip` - required for `--omni-<ext>` option
+- `imagemagick-6.q16`⭐ - required for GIF, JPEG, TIFF
+- `jpegotim`⭐ - required for JPEG processing
+- `knusperli` - required for `--jpg-webp` option 
+- `libjpeg-progs`⭐ - required for JPEG processing
+- `lzip` - required for `--omni-<ext>` option
+- `optipng`⭐ - required for PNG processing
+- `p7zip-full`⭐ - required for 7z processing
+- `poppler-utils`⭐ - required for PDF processing
+- `qpdf`⭐ - required for PDF processing
+- `rzip` - required for `--omni-<ext>` option
 - `unrar` - required for `--rar-7z` and `--rar-zip` options
 - `webp` - required for `--jpeg-webp` and `--png-webp` options
-- `zip`⭐️ - required for ZIP-derived format processing
+- `zip`⭐ - required for ZIP-derived format processing
+- `zpaq` - required for ZPAQ processing, and for `--7z-zpaq` and `--omni-<ext>` options
 
 #### Optional Dependencies
 Optional dependencies will be used if installed, and skipped if not
