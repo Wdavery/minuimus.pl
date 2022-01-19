@@ -5,9 +5,11 @@ echo "************************************************************" && \
 echo "****  update and install build packages ****" && \
 apt-get update -qy && \
 apt-get install -qy \
+ bazel-bootstrap \
  curl \
  g++ \
  gcc \
+ git \
  zlib1g-dev \
  make \
  wget && \
@@ -81,11 +83,24 @@ make && \
 mv leanify /usr/bin/leanify && \
 rm -r /tmp/leanify-src && \
 echo "************************************************************" && \
+echo "**** compile knusperli ****" && \
+mkdir -p /tmp/knusperli-src && \
+cd /tmp/knusperli-src && \
+wget -O knusperli.zip https://github.com/google/knusperli/archive/refs/heads/master.zip && \
+unzip knusperli.zip && \
+rm knusperli.zip && \
+cd knusperli-master && \
+CC=gcc bazel build :knusperli && \
+mv bazel-bin/knusperli /usr/bin/knusperli && \
+rm -r /tmp/knusperli-src && \
+echo "************************************************************" && \
 echo "**** Cleanup ****" && \
 apt-get purge -qy \
  curl \
- gcc \
+ bazel-bootstrap \
  g++ \
+ gcc \
+ git \
  zlib1g-dev \
  make \
  wget && \
