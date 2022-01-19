@@ -187,12 +187,10 @@ if($options{'version'}){
 }
 
 if($options{'check-deps'}){
-    my @deps = ("7z","advdef","advpng","advzip","brotli","bzip2","cab_analyze","cabextract","cwebp",
-            "ffmpeg","ffprobe","file","flac","flexigif","gif2apng","gifsicle","gzip","im_identify",
-            "im_convert","jbig2","jbig2dec","jpegoptim","jpegtran","knusperli","leanify","lzip",
-            "minuimus_def_helper","minuimus_swf_helper","minuimus_woff_helper","optipng",
-            "/var/opt/pdfsizeopt/pdfsizeopt","pdftoppm","pngout","poppler-utils","qpdf","rzip",
-            "unrar","webp","zip","zpaq");
+    my @deps = ("7z","advdef","advpng","advzip","brotli","bzip2","cab_analyze","cabextract","cwebp","convert-im6","ffmpeg",
+            "ffprobe","file","flac","flexigif","gif2apng","gifsicle","gzip","identify-im6","jbig2","jbig2dec","jpegoptim",
+            "jpegtran","knusperli","leanify","lzip","minuimus_def_helper","minuimus_swf_helper","minuimus_woff_helper",
+            "optipng","$pdfsizeoptpath","pdftoppm","pngout","qpdf","rzip","unrar","zip","zpaq");
     foreach (@deps)
     {
         depcheck($_);
