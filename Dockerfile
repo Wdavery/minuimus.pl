@@ -35,7 +35,7 @@ echo "**** install required and optional packages ****" && \
 echo "************************************************************" && \
 echo "**** compile minuimus and extras ****" && \
 mkdir -p /tmp/minuimus-src && \
-wget -O /tmp/minuimus-src/minuimus.zip https://birds-are-nice.me/software/minuimus.zip && \
+wget -O /tmp/minuimus-src/minuimus.zip https://github.com/Wdavery/minuimus.pl/archive/refs/heads/main.zip && \
 cd /tmp/minuimus-src && \
 unzip -qq /tmp/minuimus-src/minuimus.zip && \
 make install && \
