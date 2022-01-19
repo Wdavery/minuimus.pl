@@ -35,9 +35,10 @@ echo "**** install required and optional packages ****" && \
 echo "************************************************************" && \
 echo "**** compile minuimus and extras ****" && \
 mkdir -p /tmp/minuimus-src && \
-wget -O /tmp/minuimus-src/minuimus.zip https://github.com/Wdavery/minuimus.pl/archive/refs/heads/main.zip && \
+wget -O /tmp/minuimus-src/minuimus.pl-main.zip https://github.com/Wdavery/minuimus.pl/archive/refs/heads/main.zip && \
 cd /tmp/minuimus-src && \
-unzip -qq /tmp/minuimus-src/minuimus.zip && \
+unzip /tmp/minuimus-src/minuimus.pl-main && \
+cd /tmp/minuimus-src/minuimus.pl-main && \
 make install && \
 rm -r /tmp/minuimus-src && \
 echo "************************************************************" && \
@@ -47,6 +48,7 @@ cd /tmp/flexigif-src && \
 wget -O /tmp/flexigif-src/flexigif https://create.stephan-brumme.com/flexigif-lossless-gif-lzw-optimization/flexiGIF.2018.11a && \
 mv flexigif /usr/bin/flexigif && \
 chmod +x /usr/bin/flexigif && \
+rm -r /tmp/flexigif-src && \
 echo "************************************************************" && \
 echo "**** install pdfsizeopt, pngout, jbig2 and dependencies ****" && \
 mkdir /var/opt/pdfsizeopt && \
@@ -71,6 +73,7 @@ rm leanify.zip && \
 cd Leanify-master && \
 make && \
 mv leanify /usr/bin/leanify && \
+rm -r /tmp/leanify-src && \
 echo "************************************************************" && \
 echo "**** Cleanup ****" && \
 apt-get purge -qy \
