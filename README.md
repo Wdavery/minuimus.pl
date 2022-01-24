@@ -3,7 +3,7 @@ This repository was created to improve the documentation of dependencies and com
 
 Two branches exist:
 - `codebird-mirror`, containing the contents of `minuimus.zip` from [the source](https://birds-are-nice.me/software/minuimus.html) (starting at v3.2.1)
-- `main`, containing the dockerfile, documentation, and my changes to the code
+- `main`, containing my dockerfile, documentation, and changes to the code
 
 Script changes (from top to bottom):
 - Adds release dates to version history (starting at v3.2.1)
@@ -86,7 +86,7 @@ Note that these options chain together—eg. `--gif-png --png-to-webp` results i
 ### Dependencies
 Minuimus and it's supporting binaries are written on Ubuntu, but should be adaptable to other Linux distributions with little to no alteration. Running on Windows would require substantial modification and testing.
 #### Build Dependencies
-These are only required to use the makefile to build and install the `minuimus_***_helper` and `cab_analyze` binaries. As a perl script, `minuimus.pl` requires no compiliation and can be installed anywhere as is.
+These are only required to build and install the `minuimus_***_helper` and `cab_analyze` binaries. As a perl script, `minuimus.pl` requires no compiliation and can be installed and run anywhere as is.
 - `gcc`
 - `libz-dev` - required for `minuimus_***_helper` binaries 
 - `make`
@@ -97,33 +97,34 @@ These are only required to use the makefile to build and install the `minuimus_*
 #### Core Dependencies
 Nearly all dependencies of Minuimus are technically optional, depending on what file types will be processed.  
 Missing core dependencies will cause Minuimus to exit if processing a relevant file type is attempted.  
-Run `minuimus.pl --check-deps` will output a list of all called commands, indicating if each is found or missing.  
+Running `minuimus.pl --check-deps` will output a list of all called commands, indicating if each is found or missing.  
 
-⭐ = Minimum recommended for base-level usage
-
-- `advancecomp`⭐ - required for GZ, PNG, TGZ, and ZIP-derived format processing
-- `brotli` - required for `--omni-<ext>` option
-- `bzip2` - required for `--omni-<ext>` option
+- `advancecomp` - required for GZ, PNG, TGZ, and ZIP-derived format processing
 - `cabextract` - required for CAB processing
 - `ffmpeg` - required for MP3, FLAC, WEBM and video processing
-- `file` - required for `--fix-ext` and `cbr-cbz` options
-- `gif2apng` - required for `--gif-png` option
-- `gifsicle`⭐ - required for GIF processing
-- `gzip` - required for `--omni-<ext>` option
-- `imagemagick-6.q16`⭐ - required for GIF, JPEG, TIFF
-- `jpegotim`⭐ - required for JPEG processing
-- `knusperli` - required for `--jpg-webp` option 
-- `libjpeg-progs`⭐ - required for JPEG processing
-- `lzip` - required for `--omni-<ext>` option
-- `optipng`⭐ - required for PNG processing
-- `p7zip-full`⭐ - required for 7z processing
-- `poppler-utils`⭐ - required for PDF processing
-- `qpdf`⭐ - required for PDF processing
-- `rzip` - required for `--omni-<ext>` option
-- `unrar` - required for `--rar-7z` and `--rar-zip` options
-- `webp` - required for `--jpeg-webp` and `--png-webp` options
-- `zip`⭐ - required for ZIP-derived format processing
-- `zpaq` - required for ZPAQ processing, and for `--7z-zpaq` and `--omni-<ext>` options
+- `gifsicle` - required for GIF processing
+- `imagemagick-6.q16` - required for GIF, JPEG, TIFF
+- `jpegotim` - required for JPEG processing
+- `libjpeg-progs` - required for JPEG processing
+- `optipng` - required for PNG processing
+- `p7zip-full` - required for 7z processing
+- `poppler-utils` - required for PDF processing
+- `qpdf` - required for PDF processing
+- `zip` - required for ZIP-derived format processing
+- `zpaq` - required for ZPAQ processing, also see below
+
+##### Core `--options` Dependencies
+- `brotli` - required for `--omni-<ext>`
+- `bzip2` - required for `--omni-<ext>`
+- `file` - required for `--fix-ext` and `cbr-cbz`
+- `gif2apng` - required for `--gif-png` 
+- `gzip` - required for `--omni-<ext>`
+- `knusperli` - required for `--jpg-webp` 
+- `lzip` - required for `--omni-<ext>`
+- `rzip` - required for `--omni-<ext>`
+- `unrar` - required for `--rar-7z` and `--rar-zip`
+- `webp` - required for `--jpeg-webp` and `--png-webp`
+- `zpaq` - required for `--7z-zpaq` and `--omni-<ext>`
 
 #### Optional Dependencies
 Optional dependencies will be used if installed, and skipped if not
