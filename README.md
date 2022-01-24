@@ -138,7 +138,7 @@ Optional dependencies will be used if installed, and skipped if not
 - `flexigif` - additional GIF processing ([Source](https://create.stephan-brumme.com/flexigif-lossless-gif-lzw-optimization/))
 - `jbig2`- additional PDF processing ([Source](https://github.com/agl/jbig2enc), also available as part of pdfsizeopt install)
 - `jbig2dec` - additional PDF processing
-- `leanify` - additional JPEG, SWF, ICO and FB2 processing ([Source](https://github.com/JayXon/Leanify))
+- `leanify` - additional JPEG and SWF processing, required for ICO and FB2 processing ([Source](https://github.com/JayXon/Leanify))
 - `minuimus_def_helper` - additional PDF processing (Optional part of Minuimus install)
 - `minuimus_swf_helper` - additional SWF processing (Optional part of Minuimus install)
 - `minuimus_woff_helper` - additional WOFF processing (Optional part of Minuimus install)
