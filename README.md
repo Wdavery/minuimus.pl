@@ -5,6 +5,16 @@ Two branches exist:
 - `codebird-mirror`, containing the contents of `minuimus.zip` from [the source](https://birds-are-nice.me/software/minuimus.html) (starting from v3.2.1)
 - `main`, containing the dockerfile, documentation, and my changes to the code
 
+Script changes (from top to bottom):
+- Adds release dates to version history (starting at v3.2.1)
+- Removes cruft from message when running minuimus.pl with no arguments
+- Alphabetizes command line options available via `--help`
+- Edits options text for clarity and brevity
+- Adds `--version` option to display version/date/credits
+- Adds `check-deps` option to check availablity of all required and optional dependencies
+- Moves check for `leanify` to subroutine to eliminate the warning message appearing when irrelevant
+- Adds subroutine `depcheck` utilized by `--check-deps` option
+
 # minuimus.pl
 - [minuimus.pl](#minuimuspl)
     - [Supported file types](#supported-file-types)
