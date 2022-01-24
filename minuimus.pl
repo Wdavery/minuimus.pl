@@ -134,9 +134,11 @@ my $pdfsizeopt;
 my $pdfsizeoptpath='/var/opt/pdfsizeopt/pdfsizeopt';
 
 if (!@ARGV) {
-  print("  minuimus.pl: condēnstor optimum tardissimum.\n  The best, slowest, compresser.\n\n"); #Condēnsō with -tor suffix. New Latin, I can make up words if I want to.
-  print("     minuimus.pl <file> [file] [file] ... [file]\n or\n   minuimus.pl *.[ext]\n\n");
-  print("  For processing large numbers of files, use find:\n   find <target> -type f -print0|xargs -0 -P <threads> -n 8 minuimus.pl\n or\n   find <target> -type f -print0|parallel -0 -n 4 minuimus.pl\n\n");
+  print("minuimus.pl: condēnstor optimum tardissimum.\nThe best, slowest, compresser.\n\n"); #Condēnsō with -tor suffix. New Latin, I can make up words if I want to.
+  print("minuimus.pl <file> [file] [file] ... [file]\nor\nminuimus.pl *.[ext]\n\n");
+  print("For processing large numbers of files, use find:\nfind <target> -type f -print0|xargs -0 -P <threads> -n 8 minuimus.pl\nor\nfind <target> -type f -print0|parallel -0 -n 4 minuimus.pl\n\n");
+  print("For help, see: `minuimus.pl --help`\n");
+
   exit(0);
 }
 
@@ -157,12 +159,14 @@ my @files = map { File::Spec->rel2abs($_) } @ARGV;
 $options{'recur-depth'}=1;
 
 if($options{'help'}){
-  print("These options enable file format conversion and other non-transparent features, which will alter the format of your files in order further reduce filesize.\n\n",
+  print("--check-deps    Checks for all core and optional dependencies (Actually checks for each called command individually)\n",
+        "--help          Displays this help page\n",
+        "--version       Displays current version, release date and credits\n\n",
+        "The following options enable file format conversion and other non-transparent features, which will alter the format of your files in order further reduce filesize.\n\n",
         "--7z-zpaq       Convert 7z to ZPAQ. Aborts if larger than original. Tries to optimize the 7z first.\n",
         "--audio-agg     With --audio, converts MP3 to very low-bitrate OPUS. Sound quality suffers. Intended for voice, never music. Also re-encodes .m4b files.\n                All metadata preserved\n",
         "--audio         Enables compression of high-quality MP3 (>=256kbps) to OPUS 128kbps. This will also apply within archive files, for converting albums\n",
         "--cbr-cbz       Converts CBR to CBZ. Likely creates a larger file, but allows image optimizations—resulting in ultimately smaller file\n",
-        "--check-deps    Checks for all core and optional dependencies (Actually checks for each called command individually) \n",
         "--discard-meta  Discards metadata from image and PDF files. Can produce considerable savings for PDF. It only deletes the XML-based metadata, so the title remains\n",
         "--fix-ext       Detects some common file types with the wrong extension, and corrects\n",
         "--gif-png       Converts GIF files to PNG, including animated GIF to animated PNG. Likely results in a smaller file\n",
