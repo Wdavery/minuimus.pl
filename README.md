@@ -113,7 +113,7 @@ Running `minuimus.pl --check-deps` will output a list of all called commands, in
 - `zip` - required for ZIP-derived format processing
 - `zpaq` - required for ZPAQ processing, also see below
 
-##### Core `--options` Dependencies
+##### Additional `--options` Core Dependencies
 - `brotli` - required for `--omni-<ext>`
 - `bzip2` - required for `--omni-<ext>`
 - `file` - required for `--fix-ext` and `cbr-cbz`
