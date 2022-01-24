@@ -58,7 +58,6 @@ All processing is only saved to disk if the processed file is smaller and change
 - `ZIP` (and ZIP-derived formats:`CBZ`, `DOCX`, `EPUB`, `ODP`, `ODS`, `ODT`, and `XLSX`) are extracted and (non-archive) files within are processed individually, junk files such as Thumb.db and .ds_store are deleted, then recompressed into `ZIP` by `advzip`
 
 ### Command Line Options
-Utilities:
 | Option           | Description                                                                                          |
 | ---------------- | ---------------------------------------------------------------------------------------------------- |
 | `--check-deps`   | Checks for all core and optional dependencies (Actually checks for each called command individually) |
