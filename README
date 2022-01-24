@@ -1,0 +1,20 @@
+Minuimus has many dependencies. Which specific dependencies it needs depends upon the file you are optimising. It will tell you, and in most cases abort and exit(1) if a dependency is not found.
+
+There are two classes of dependency: The essential ones which minuimus needs to work, and the optional ones which can render minuimus more capable at its task of reducing file sizes. All of the essential ones are widely-known packages that you can easily apt-get on ubuntu, and should be in the repository of all major distributions. You can install them all with 'make deps'
+
+The optional dependencies are flexigif, pdfsizeopt, pngout, leanify and jbig2. Installing these will allow for better compression of the associated file types.
+
+Additionally minuimus has a number of helper binaries which should be compiled and installed in /usr/bin. These are also optional dependencies: They are not essential for minuimus to operate, but support for WOFF, SWF and CAB files will not be functional if those binaries are not present. PDF optimisation requires minuimus_def_helper to be fully effective - it will function without this binary, but the files will not be as effectively optimised as they would be were the binary present.
+
+On ubuntu and most other debian-derivatives, use the following commands (As root or sudo):
+make deps  (apt-get installs all required supporting packages)
+make all   (Compiles helper binaries)
+make install (Copies all needed files to /usr/bin)
+
+Additionally, GIF optimisation requires Flexigif, which is not in the ubuntu repository and must be downloaded and installed manually from  from https://create.stephan-brumme.com/flexigif-lossless-gif-lzw-optimization
+
+The full documentation for minumius, including a detailed description of the processing performed on each supported file type, can be read at https://birds-are-nice.me/software/minuimus.html
+
+All of the optimisations enabled by default are completely lossless and transparent. Minuimus is also capable of a number of non-transparent or slightly lossy optimisations, which must be enabled by command line option. To see the list of supported options, run minuimus.pl --help
+
+pngout for linux can be obtained from https://jonof.id.au/kenutils.html and should be installed by placing the entire folder under /var/opt/pdfsizeopt.
