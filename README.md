@@ -59,8 +59,8 @@ All processing is only saved to disk if the processed file is smaller and change
 
 ### Command Line Options
 Utilities:
-| Option           | Description                                                                                                                                            |
-| ---------------- | ---------------------------------------------------------------------------------------------------- |                                                                                                                  |
+| Option           | Description                                                                                          |
+| ---------------- | ---------------------------------------------------------------------------------------------------- |
 | `--check-deps`   | Checks for all core and optional dependencies (Actually checks for each called command individually) |
 | `--help`         | Displays this help page                                                                              |
 | `--version`      | Displays current version, release date and credits                                                   |
