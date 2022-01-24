@@ -65,8 +65,8 @@ Utilities:
 | `--help`         | Displays this help page                                                                              |
 | `--version`      | Displays current version, release date and credits                                                   |
 
-These options enable file format conversion and other non-transparent features, which will alter the format of your files in order further reduce filesize.
-Note that these options chain together—eg. `--gif-png --png-to-webp` results in .gif converted to .webp
+The following options enable file format conversion and other non-transparent features, which will alter the format of your files in order further reduce filesize.
+Note that these can chain together—eg. `--gif-png --png-to-webp` results in .gif being converted to .webp
 | Option           | Description                                                                                                                                                                                                                                   |
 | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `--7z-zpaq`      | Convert `7z` to `ZPAQ`. Aborts if larger than original. Tries to optimize the `7z` first                                                                                                                                                      |
