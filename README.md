@@ -58,6 +58,13 @@ All processing is only saved to disk if the processed file is smaller and change
 - `ZIP` (and ZIP-derived formats:`CBZ`, `DOCX`, `EPUB`, `ODP`, `ODS`, `ODT`, and `XLSX`) are extracted and (non-archive) files within are processed individually, junk files such as Thumb.db and .ds_store are deleted, then recompressed into `ZIP` by `advzip`
 
 ### Command Line Options
+Utilities:
+| Option           | Description                                                                                                                                            |
+| ---------------- | ---------------------------------------------------------------------------------------------------- |                                                                                                                  |
+| `--check-deps`   | Checks for all core and optional dependencies (Actually checks for each called command individually) |
+| `--help`         | Displays this help page                                                                              |
+| `--version`      | Displays current version, release date and credits                                                   |
+
 These options enable file format conversion and other non-transparent features, which will alter the format of your files in order further reduce filesize.
 Note that these options chain together—eg. `--gif-png --png-to-webp` results in .gif converted to .webp
 | Option           | Description                                                                                                                                                                                                                                   |
@@ -66,7 +73,6 @@ Note that these options chain together—eg. `--gif-png --png-to-webp` results i
 | `--audio-agg`    | With `--audio`, converts `MP3` to very low-bitrate `OPUS`. Sound quality suffers. Intended for voice, never music. Also re-encodes .m4b files. All metadata preserved                                                                         |
 | `--audio`        | Enables compression of high-quality `MP3` (>=256kbps) to `OPUS` 128kbps. This will also apply within archive files, for converting albums                                                                                                     |
 | `--cbr-cbz`      | Converts `CBR` to `CBZ`. Likely creates a larger file, but allows image optimizations—resulting in ultimately smaller file                                                                                                                    |
-| `--check-deps`   | Checks for all core and optional dependencies (Actually checks for each called command individually)                                                                                                                                           |
 | `--discard-meta` | Discards metadata from image and `PDF` files. Can produce considerable savings for `PDF`. It only deletes the XML-based metadata, so the title remains                                                                                        |
 | `--fix-ext`      | Detects some common file types with the wrong extension, and corrects                                                                                                                                                                         |
 | `--gif-png`      | Converts `GIF` files to `PNG`, including animated `GIF` to animated `PNG`. Likely results in a smaller file                                                                                                                                   |
@@ -95,7 +101,7 @@ These are only required to build and install the `minuimus_***_helper` and `cab_
 - `perl` - required for running minuimus.pl 
 
 #### Core Dependencies
-Nearly all dependencies of Minuimus are technically optional, depending on what file types will be processed.  
+Nearly all dependencies of Minuimus are optional, depending on what file types will be processed.  
 Missing core dependencies will cause Minuimus to exit if processing a relevant file type is attempted.  
 Running `minuimus.pl --check-deps` will output a list of all called commands, indicating if each is found or missing.  
 
@@ -111,9 +117,10 @@ Running `minuimus.pl --check-deps` will output a list of all called commands, in
 - `poppler-utils` - required for PDF processing
 - `qpdf` - required for PDF processing
 - `zip` - required for ZIP-derived format processing
-- `zpaq` - required for ZPAQ processing, also see below
+- `zpaq` - required for ZPAQ processing
 
 ##### Additional `--options` Core Dependencies
+If an option requires a dependency from [Core Dependencies](#core-dependencies) it is omitted here
 - `brotli` - required for `--omni-<ext>`
 - `bzip2` - required for `--omni-<ext>`
 - `file` - required for `--fix-ext` and `cbr-cbz`
@@ -124,7 +131,6 @@ Running `minuimus.pl --check-deps` will output a list of all called commands, in
 - `rzip` - required for `--omni-<ext>`
 - `unrar` - required for `--rar-7z` and `--rar-zip`
 - `webp` - required for `--jpeg-webp` and `--png-webp`
-- `zpaq` - required for `--7z-zpaq` and `--omni-<ext>`
 
 #### Optional Dependencies
 Optional dependencies will be used if installed, and skipped if not
