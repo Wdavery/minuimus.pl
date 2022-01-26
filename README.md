@@ -90,16 +90,17 @@ Note that these can chain together—eg. `--gif-png --png-to-webp` results in .g
 
 ### Dependencies
 Minuimus and it's supporting binaries are written on Ubuntu, but should be adaptable to other Linux distributions with little to no alteration. Running on Windows would require substantial modification and testing.
-#### Build Dependencies
+
+#### Build Dependencies 🟣
 These are only required to build and install the `minuimus_***_helper` and `cab_analyze` binaries. As a perl script, `minuimus.pl` requires no compiliation and can be installed and run anywhere as is.
 - `gcc`
 - `libz-dev` - required for `minuimus_***_helper` binaries 
 - `make`
 
-#### Hard Dependency
+#### Hard Dependency 🔴
 - `perl` - required for running minuimus.pl 
 
-#### Core Dependencies
+#### Core Dependencies 🟠
 Nearly all dependencies of Minuimus are optional, depending on what file types will be processed.  
 Missing core dependencies will cause Minuimus to exit if processing a relevant file type is attempted.  
 Running `minuimus.pl --check-deps` will output a list of all called commands, indicating if each is found or missing.  
@@ -118,7 +119,7 @@ Running `minuimus.pl --check-deps` will output a list of all called commands, in
 - `zip` - required for ZIP-derived format processing
 - `zpaq` - required for ZPAQ processing
 
-##### Additional `--options` Core Dependencies
+##### Additional `--options` Core Dependencies 🟡
 If an option requires a dependency from [Core Dependencies](#core-dependencies) it is omitted here
 - `brotli` - required for `--omni-<ext>`
 - `bzip2` - required for `--omni-<ext>`
@@ -131,7 +132,7 @@ If an option requires a dependency from [Core Dependencies](#core-dependencies) 
 - `unrar` - required for `--rar-7z` and `--rar-zip`
 - `webp` - required for `--jpeg-webp` and `--png-webp`
 
-#### Optional Dependencies
+#### Optional Dependencies 🔵
 Optional dependencies will be used if installed, and skipped if not
 - `cab_analyze` - additional CAB processing (Optional part of Minuimus install)
 - `flexigif` - additional GIF processing ([Source](https://create.stephan-brumme.com/flexigif-lossless-gif-lzw-optimization/))
