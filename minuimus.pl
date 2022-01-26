@@ -116,6 +116,10 @@
 #      Fixed typo in an error message.
 #      Leanify now processes SVG and PNG when discard-meta enabled.
 #      Fixed a bug in video reencode handling files with multiple audio - ffmpeg was dropping all but one track by default!
+# 3.3 (2022-01-26)
+#      Re-fixed the bug with multiple audio: It wasn't fixed after all. Now it is.
+#      advdef z4k changed to z4
+#      Fixed a number of not-at-all-serious warnings visible with 'use warnings.'
 
 use File::Spec;
 use File::Copy;
@@ -125,6 +129,7 @@ use MIME::Base64;
 use Fcntl qw< LOCK_EX SEEK_SET >;
 
 use strict;
+
 use Cwd;
 my %empty;
 my $counter=int(rand(10000));
@@ -148,7 +153,7 @@ my %options={};
 
 my %testedcommands={};
 
-#my $infile = File::Spec->rel2abs($ARGV[0]) ;
+#my $input_file = File::Spec->rel2abs($ARGV[0]) ;
 
 for (@ARGV) {
   if(substr($_, 0, 2) eq '--'){
@@ -185,7 +190,7 @@ if($options{'help'}){
   exit(0);
 }
 if($options{'version'}){
-  print("Minuimus.pl - version 3.2.1 (2022-01-18)\n",
+  print("Minuimus.pl - version 3.3 (2022-01-26)\n",
         "Written by Codebird\n",
         "Additional changes by Wdavery\n");
   exit(0);
@@ -215,9 +220,9 @@ if($options{'check-deps'}){
 my $im_identify='identify-im6';
 my $im_convert='convert-im6';
 `which $im_identify`;
-$? && {$im_identify='identify'};
+if($?){$im_identify='identify'};
 `which $im_convert`;
-$? && {$im_convert='convert'};
+if($?){$im_convert='convert'};
 
 for (@files) {
   if(-f $_){
@@ -361,7 +366,7 @@ sub compressfile($%) {
 }
   if ($ext eq 'jar') { #Not going to take these apart, too much risk of breaking things.
     testcommand('advzip');
-    system('advzip', '-z4k', '-q', $file);
+    system('advzip', '-z4', '-q', $file);
   }
   if($ext eq 'gz' ||
      $ext eq 'tgz' ){
@@ -369,13 +374,17 @@ sub compressfile($%) {
     system('advdef', '-z4', $file);
   }
   if($ext eq 'swf'){
-    if( -f '/usr/bin/minuimus_swf_helper'){
+        `which minuimus_swf_helper `;
+    if( ! $?){
       testcommand('jpegoptim');
       system('minuimus_swf_helper', 'z', $file, $file);
     }else{
-      print("Optional helper /usr/bin/minuimus_swf_helper not found - skipping SWF file.\n");
+      print("Optional helper minuimus_swf_helper not found - skipping SWF file.\n");
     }
     leanify($file);
+  }
+    if ($ext eq 'webm'){
+    repack_webm($file);
   }
   if($options{'video'} &&(
     $ext eq 'avi' ||
@@ -390,9 +399,6 @@ sub compressfile($%) {
     $file=processvideo($file);
     $ext=lc($file);
     $ext=~s/^.*\.//;
-  }
-  if ($ext eq 'webm'){
-    repack_webm($file);
   }
 
   if ($ext eq 'docx' ||
@@ -557,38 +563,38 @@ sub fileisgrey(){
 
 sub jpeg2webp(){
   #This function is lossy, and so will only be used if the appropriate command-line option is given. It's not very lossy though. Tiny degredation.
-  my $infile=$_[0];
+  my $input_file=$_[0];
   my $tempfile="$tmpfolder/$$-$counter.png";
   $counter++;
-  my $outfile=$infile;
-  $outfile =~ s/\.jpg$/\.webp/i;
-  $outfile =~ s/\.jpeg$/\.webp/i;
-  if(($infile eq $outfile) || -e $outfile){
-    return($infile);
+  my $output_file=$input_file;
+  $output_file =~ s/\.jpg$/\.webp/i;
+  $output_file =~ s/\.jpeg$/\.webp/i;
+  if(($input_file eq $output_file) || -e $output_file){
+    return($input_file);
   }
   printq("  Attempting JPEG to WebP.\n");
   testcommand('knusperli');
   testcommand('cwebp');
-  my $ret=system('knusperli', $infile, $tempfile);
+  my $ret=system('knusperli', $input_file, $tempfile);
   if($ret || !(-f $tempfile)){
     print("Error in knusperli.\n");
     unlink($tempfile);
-    return($infile);
+    return($input_file);
   }
-  $ret=system('cwebp', '-sharp_yuv', '-m', '6', '-q', '90', '-quiet', '-pass', '10', $tempfile, '-o', $outfile);
+  $ret=system('cwebp', '-sharp_yuv', '-m', '6', '-q', '90', '-quiet', '-pass', '10', $tempfile, '-o', $output_file);
   unlink($tempfile);
-  if($ret || !(-f $outfile)){
+  if($ret || !(-f $output_file)){
     print("Error in cwebp.\n");
-    unlink($outfile);
-    return($infile);
+    unlink($output_file);
+    return($input_file);
   }
-  if((-s $outfile) > (-s $infile)*0.9){
+  if((-s $output_file) > (-s $input_file)*0.9){
     printq("    Not worth the quality loss.\n");
-    unlink($outfile);
-    return($infile);
+    unlink($output_file);
+    return($input_file);
   }
-  unlink($infile);
-  return($outfile);
+  unlink($input_file);
+  return($output_file);
 }
 
 sub getsha256($){
@@ -604,15 +610,15 @@ sub png2webp(){
   my $file=$_[0];
   testcommand('cwebp');
   my $anim=is_animated_png($file);
-  my $outfile=$file;
-  $outfile=~ s/\.png$/\.webp/i;
+  my $output_file=$file;
+  $output_file=~ s/\.png$/\.webp/i;
 
   if ($anim != 0){
     # Either animated, or not a PNG.
     return($file);
   }
   print "Attempting png->webp conversion.\n";
-  if(-e $outfile){
+  if(-e $output_file){
     print("  WEBP file exists already.\n");
     return($file);
   }
@@ -632,11 +638,11 @@ sub png2webp(){
     return($file);
   }
 
-  move($tempfile, $outfile);
-  if(-f $outfile){
-    print("Converted '$file' to '$outfile'\n");
+  move($tempfile, $output_file);
+  if(-f $output_file){
+    print("Converted '$file' to '$output_file'\n");
     unlink($file);
-    return($outfile);
+    return($output_file);
   }
   return($file);
 }
@@ -644,71 +650,71 @@ sub png2webp(){
 sub img2png(){
   #Converts most images to PNG.
   #But not GIFs. Well, it would do GIFs, but it wouldn't preserve their animation.
-  my $infile=$_[0];
-  my $not_ext=substr($infile, 0,rindex($infile, '.')+1);
+  my $input_file=$_[0];
+  my $not_ext=substr($input_file, 0,rindex($input_file, '.')+1);
   my $tempfile="$tmpfolder/$$-$counter.png";
   $counter++;
   my $newname=$not_ext.'png';
   if(-e $newname){
     print "  Cannot convert file: Output '$newname' exists.\n";
-    return($infile);
+    return($input_file);
   }
   testcommand($im_convert);
-  my $ret=system($im_convert, $infile, $tempfile);
+  my $ret=system($im_convert, $input_file, $tempfile);
   if($ret){
     unlink($tempfile);
-    return($infile);
+    return($input_file);
   }
-  my $newname=$not_ext.'png';
-  print "  Converted '$infile' to '$newname'\n";
+  $newname=$not_ext.'png';
+  print "  Converted '$input_file' to '$newname'\n";
   move($tempfile, $newname);
   if(! -f $newname){
     print("  Conversion failed.\n");
     unlink($tempfile);
-    return($infile);
+    return($input_file);
   }
-  unlink($infile);
+  unlink($input_file);
   return($newname);
 }
 
 sub agif2apng($) {
-  my $infile=$_[0];
+  my $input_file=$_[0];
   my $initialcwd;
-  if (substr($infile, 0, 1) eq '/'){
+  if (substr($input_file, 0, 1) eq '/'){
     $initialcwd=getcwd();
     chdir('/');
-    $infile=substr($infile, 1);
-#    print("Patch: $infile\n");
+    $input_file=substr($input_file, 1);
+#    print("Patch: $input_file\n");
   }
-  my $outfile=$infile;
-  $outfile=~ s/\.gif$/\.png/i;
-  print("Converting $infile to $outfile\n");
-  if(-e $outfile){
-    print("  Conversion failed: $outfile exists.\n");
-    return($infile);
+  my $output_file=$input_file;
+  $output_file=~ s/\.gif$/\.png/i;
+  print("Converting $input_file to $output_file\n");
+  if(-e $output_file){
+    print("  Conversion failed: $output_file exists.\n");
+    return($input_file);
   }
   testcommand('gif2apng');
-  system('gif2apng', $infile, $outfile);
+  system('gif2apng', $input_file, $output_file);
   if($initialcwd){
     chdir($initialcwd);
-    $infile='/'.$infile;
-    $outfile='/'.$outfile;
+    $input_file='/'.$input_file;
+    $output_file='/'.$output_file;
   }
-  if( $? && -f $outfile ){ unlink($outfile); }
+  if( $? && -f $output_file ){ unlink($output_file); }
 
-  if( -f $outfile ){
-    print("Gif $infile converted.\n");
-    unlink($infile);
+  if( -f $output_file ){
+    print("Gif $input_file converted.\n");
+    unlink($input_file);
   }else{
     print("Conversion failed.\n");
-    return($infile);
+    return($input_file);
   }
-  compress_png($outfile);
-  return($outfile);
+  compress_png($output_file);
+  return($output_file);
 }
 
 sub compress_cab(){
-  my $infile=$_[0];
+  my $input_file=$_[0];
   if(!-e '/usr/bin/cab_analyze'){
     printf("/usr/bin/cab_analyse not found. Installing this helper might permit a small - very small - space reduction of CAB files. Maybe a few K at most.\n");
     return;
@@ -716,11 +722,11 @@ sub compress_cab(){
   testcommand('cabextract');
   my $tempfile="$tmpfolder/$$-$counter";
   $counter++;
-  my $ret=system('/usr/bin/cab_analyze', $infile, $tempfile);
+  my $ret=system('/usr/bin/cab_analyze', $input_file, $tempfile);
   if($ret && -f $tempfile){unlink($tempfile)};
-  if(-s $infile <= -s $tempfile){unlink($tempfile)};
+  if(-s $input_file <= -s $tempfile){unlink($tempfile)};
   if(!-f $tempfile){return;}
-  my $a = `cabextract "$infile" -p | sha256sum`;
+  my $a = `cabextract "$input_file" -p | sha256sum`;
   my $b = `cabextract "$tempfile" -p | sha256sum`;
   if($a ne $b){
     unlink($tempfile);
@@ -728,31 +734,31 @@ sub compress_cab(){
   }
   if(-f $tempfile){
     printf("Cab file reduction successful.\n");
-    move($tempfile, $infile);
+    move($tempfile, $input_file);
   }
 }
 
 sub compress_zip() {
   #Not just ZIP! This also handles zip-container-based formats.
   #It may also be used for archive conversion, so it returns 0 on fail, or the new filename on success.
-  my $infile=$_[0];
+  my $input_file=$_[0];
   my $outtype=$_[1]; # 'zip' 'cbz' or '7z'
   my $intype='zip';
-  my $outfile=substr($infile, 0, rindex($infile, '.'));
-  my $ext=substr($infile, rindex($infile, '.'));
+  my $output_file=substr($input_file, 0, rindex($input_file, '.'));
+  my $ext=substr($input_file, rindex($input_file, '.'));
 
   if(!$outtype){$outtype='zip'}
   if($outtype eq 'zip'){
-    $outfile = $outfile.$ext;
-    $outfile=~ s/\.cbr$/\.cbz/i;
-    $outfile=~ s/\.rar$/\.zip/i;
+    $output_file = $output_file.$ext;
+    $output_file=~ s/\.cbr$/\.cbz/i;
+    $output_file=~ s/\.rar$/\.zip/i;
   }
   if($outtype eq '7z'){
-    $outfile = $outfile.'.7z';
+    $output_file = $output_file.'.7z';
     testcommand('7z');
   }
   if($outtype eq 'zpaq'){
-    $outfile = $outfile.'.zpaq';
+    $output_file = $output_file.'.zpaq';
     testcommand('zpaq');
   }
 
@@ -806,7 +812,7 @@ sub compress_zip() {
   
   my $zipclear=0;
   if($ext eq '.cbz' || ($ext eq '.zip' && $options{'del-zip-junk'})){
-    system('zip', '-qd',$infile, '*/', #Looks weird, but actually here to delete empty directories.
+    system('zip', '-qd',$input_file, '*/', #Looks weird, but actually here to delete empty directories.
            '*.PAR2', '*.PAR', '*.P01', '*.P02', '*.P03', '*.P04', '*.P05', '*.P06',#And all this error correction
            '*.SFV', '*.MD5', '*.csv', '*.sfv', '*.md5',                 #Which we are about to invalidate.
            'WS_FTP.LOG', '*/SUPERJPG.TNC', 'PPThumbs.ptn', #And that is just sloppy!
@@ -817,8 +823,8 @@ sub compress_zip() {
 
 
   if(!$zipclear && ($intype eq 'zip' )){
-    system('zip', '-qd',$infile, '*/.DS_Store','.DS_Store','*/Thumbs.db','Thumbs.db', 'SUPERJPG.TNC', '*/SUPERJPG.TNC'); #Dirt. There's nothing of value in these.
-    system('advzip', '-z4k', '-q', $infile);
+    system('zip', '-qd',$input_file, '*/.DS_Store','.DS_Store','*/Thumbs.db','Thumbs.db', 'SUPERJPG.TNC', '*/SUPERJPG.TNC'); #Dirt. There's nothing of value in these.
+    system('advzip', '-z4', '-q', $input_file);
   }
 
   my $id="$$-$counter";
@@ -831,8 +837,8 @@ sub compress_zip() {
   mkdir($tempfolder);
   chdir($tempfolder);
   print("  Decompressing  container.\n");
-  if (  extract_archive($infile) ) {
-    print "Archive error 1: Decompress failed on $infile\n";
+  if (  extract_archive($input_file) ) {
+    print "Archive error 1: Decompress failed on $input_file\n";
     chdir("$tmpfolder/");
    `rm -rf $tempfolder`;
    chdir($initialcwd);
@@ -859,12 +865,12 @@ sub compress_zip() {
     chdir($tmpfolder);
     `rm -rf $tempfolder`;
     chdir($initialcwd);
-    return($outfile);
+    return($output_file);
   }
   print(" Compressed $savedfiles sub-files.\n");
   my $tempfile="$tmpfolder/ziptmp$id.zip";
-  if(lc(substr($infile, -4)) eq '.cbz' ||
-     lc(substr($infile, -4)) eq '.cbr' ){
+  if(lc(substr($input_file, -4)) eq '.cbz' ||
+     lc(substr($input_file, -4)) eq '.cbr' ){
     $tempfile="$tmpfolder/ziptmp$id.cbz";
   }
   if($outtype eq '7z'){
@@ -891,11 +897,11 @@ sub compress_zip() {
     return(0);
   }
 
-  if((lc(substr($infile, -4)) eq '.zip' ||
-     lc(substr($infile, -4)) eq '.cbz' ) &&
-     (lc(substr($outfile, -4)) eq '.zip' ||
-     lc(substr($outfile, -4)) eq '.cbz' )){
-    if (!zip_compare($infile, $tempfile)) {
+  if((lc(substr($input_file, -4)) eq '.zip' ||
+     lc(substr($input_file, -4)) eq '.cbz' ) &&
+     (lc(substr($output_file, -4)) eq '.zip' ||
+     lc(substr($output_file, -4)) eq '.cbz' )){
+    if (!zip_compare($input_file, $tempfile)) {
       print("  Zip error 3: Although the process appeared to complete successfully, the output file differs in number of contained files from the input.\n  Something must have gone wrong. Aborting.\n");
       unlink($tempfile);
       chdir($initialcwd);
@@ -904,24 +910,24 @@ sub compress_zip() {
   }
 
 
-  my $insize = -s $infile;
+  my $insize = -s $input_file;
   my $outsize = -s $tempfile;
   if(!$outsize){
     print("Archive creation failed.\n");
     return(0);
   }
   my $ignoresize=0;
-  if(lc(substr($infile, -4)) eq '.cbr'){$ignoresize=1};
+  if(lc(substr($input_file, -4)) eq '.cbr'){$ignoresize=1};
   if (($outsize >= $insize) && !$ignoresize) {
-    print("  Failed to achieve significant space savings ($infile, $insize->$outsize).\n");
+    print("  Failed to achieve significant space savings ($input_file, $insize->$outsize).\n");
     unlink($tempfile);
     chdir($initialcwd);
-    return($infile);
+    return($input_file);
   }
-  unlink($infile);
-  move($tempfile, $outfile);
+  unlink($input_file);
+  move($tempfile, $output_file);
   chdir($initialcwd);
-  return($outfile);
+  return($output_file);
 }
 
 
@@ -1097,7 +1103,7 @@ sub compress_gif(){
     unlink($tempfile);
   }
 
-  my $befores = -s $file;
+  $befores = -s $file;
 
   `which flexiGIF`;
   if ($? || $befores>102400) {
@@ -1110,8 +1116,7 @@ sub compress_gif(){
   # large files, otherwise it could take all day - and that's not hyperbole.
   system('flexiGIF', '-p', $file, $tempfile);
 
-  my $befores = -s $file;
-  my $afters = -s $tempfile;
+  $afters = -s $tempfile;
 
   if (! $afters) {
     print "Gif compressor error 3b\n";
@@ -1179,8 +1184,8 @@ sub compress_pdf() {
   $counter++;
   
   print("  adv_pdf($file) using tempfile $tempfile\n");
-  if(! -f '/usr/bin/minuimus_def_helper'){
-    print("    The utility /usr/bin/minuimus_def_helper was not found.\n    This program is not required to optimise PDF files, but substantially higher compression will be achieved if it is present.\n");
+  if(! testcommand_nonessential('minuimus_def_helper')){
+    print("    The utility minuimus_def_helper was not found.\n    This program is not required to optimise PDF files, but substantially higher compression will be achieved if it is present.\n");
   }
 #  my $ret=system('qpdf', $file, '--stream-data=compress', '--object-streams=generate', '--decode-level=specialized', '--compression-level=9', '--linearize',$tempfile);
   my $ret;
@@ -1334,7 +1339,7 @@ sub advpdf_obj(){
     $filtertype=2;
     $tempname=$tempname.'.jpg';
   }elsif((index($dict, '/Filter /JBIG2Decode ')>0) && (index($dict, 'JBIG2Globals') == -1)){
-    if(! (-f '/usr/bin/jbig2dec' && -f '/usr/bin/jbig2')){
+    if(! (testcommand_nonessential('jbig2dec') && testcommand_nonessential('jbig2'))){
       return; #jbig2dec you can get off of the repository, but jbig2 is a complicated compile from source.
                  #And in any case, almost all PDFs with JBIG2 already use the same or better encoder, so it's not likely to improve at all.
                  #Use it if it's around, maybe it'll give another percentage point saving at most. But if not, don't even prompt for it to be installed.
@@ -1484,8 +1489,8 @@ sub is_pdfsizeopt_installed(){
   testcommand('optipng');
   testcommand('advpng');
   if((-e $pdfsizeoptpath) &&
-     !system('which', 'png22pnm') &&
-     !system('which', 'sam2p')){
+     testcommand_nonessential('png22pnm') &&
+     testcommand_nonessential('sam2p')){
     $pdfsizeopt=2;
     return(1);
   }
@@ -1498,22 +1503,22 @@ sub is_pdfsizeopt_installed(){
 sub extract_archive(){
   #Extracts an archive into CWD.
   #Returns non-zero upon any sort of failure.
-  my $infile=$_[0];
-  my $ext=lc($infile);
+  my $input_file=$_[0];
+  my $ext=lc($input_file);
   $ext=~s/^.*\.//;
   my $err=1;
 
   if($ext eq 'rar' ||
      $ext eq 'cbr'){
     testcommand('unrar');
-     $err=system('unrar', 'x', '-ai', '-c-', '-p-', $infile);
+     $err=system('unrar', 'x', '-ai', '-c-', '-p-', $input_file);
   }elsif($ext eq '7z' ||
          $ext eq 'cb7'){
     testcommand('7z');
-    $err=system('7z', 'x', $infile);
+    $err=system('7z', 'x', $input_file);
   }else{
     testcommand('unzip');
-    $err=system('unzip', '-q', $infile);
+    $err=system('unzip', '-q', $input_file);
   }
   # Because some epubs, for some odd reason, seem to like putting a unix
   # permission extension in that 000's mimetype. Better do this just to be safe.
@@ -1549,7 +1554,7 @@ sub make_zip(){
     $failed=1;
   }
   if($failed){return(1);}
-  system('advzip', '-z4k', '-i 40', '-q', $dest);
+  system('advzip', '-z4', '-i 40', '-q', $dest);
   print("Zip created.\n");
   return(0);
 }
@@ -1558,19 +1563,19 @@ sub make_zip(){
 sub make_7z(){
   #This makes a 7z file. It is responsible for choosing the best compression.
   #Returns 1 if fail.
-  my $outfile=$_[0];
-  if(-e $outfile){print("Output 7z already exists\n");return(1);}
+  my $output_file=$_[0];
+  if(-e $output_file){print("Output 7z already exists\n");return(1);}
   testcommand('7z');
-  system('7z', 'a', '-t7z', '-m0=lzma', '-mx=9', '-mfb=64', '-md=128m', '-mmt=off', '-bd', '-bb0', "$outfile-A", '.');
-  if($?){print "  7z error. Aborting.\n";unlink("$outfile-A");return(1)};
-  system('7z', 'a', '-t7z', '-m0=PPMd', '-mmem=128m', '-mmt=off', '-mo=15', '-bd', '-bb0', "$outfile-B", '.');
-  if($?){print "  7z error. Aborting.\n";unlink("$outfile-A");unlink("$outfile-B");return(1)};
-  print "LZMA size: ".(-s "$outfile-A")."\n";
-  print "PPMd size: ".(-s "$outfile-B")."\n";
-  if((-s "$outfile-A" ) > (-s "$outfile-B")){
-    unlink("$outfile-A");move("$outfile-B", $outfile);
+  system('7z', 'a', '-t7z', '-m0=lzma', '-mx=9', '-mfb=64', '-md=128m', '-mmt=off', '-bd', '-bb0', "$output_file-A", '.');
+  if($?){print "  7z error. Aborting.\n";unlink("$output_file-A");return(1)};
+  system('7z', 'a', '-t7z', '-m0=PPMd', '-mmem=128m', '-mmt=off', '-mo=15', '-bd', '-bb0', "$output_file-B", '.');
+  if($?){print "  7z error. Aborting.\n";unlink("$output_file-A");unlink("$output_file-B");return(1)};
+  print "LZMA size: ".(-s "$output_file-A")."\n";
+  print "PPMd size: ".(-s "$output_file-B")."\n";
+  if((-s "$output_file-A" ) > (-s "$output_file-B")){
+    unlink("$output_file-A");move("$output_file-B", $output_file);
   }else{
-    unlink("$outfile-B");move("$outfile-A", $outfile);
+    unlink("$output_file-B");move("$output_file-A", $output_file);
   }
 
   my @filelist=split(
@@ -1579,31 +1584,31 @@ sub make_7z(){
   );
   my $numfiles=@filelist;
   if($numfiles==1){
-    print("Best size: ".(-s $outfile)."\n");
+    print("Best size: ".(-s $output_file)."\n");
     return(0);
   }
 
-  print("Best size: ".(-s $outfile)."\n");
+  print("Best size: ".(-s $output_file)."\n");
   return(0);
 }
 
 sub make_zpaq(){
-  my $outfile=$_[0];
+  my $output_file=$_[0];
   testcommand('zpaq');
-  print("  Creating zpaq archive $outfile.\n");
-  if( -e $outfile){
+  print("  Creating zpaq archive $output_file.\n");
+  if( -e $output_file){
     print("  Error creating zpaq file: File already exists.\n");
     return(1);
   }
   my @filelist=sort split(/\0/,`find . -type f -print0`);
   my $zconf='/usr/share/doc/zpaq/examples/max.cfg';
   -f $zconf || ($zconf='');
-  system('zpaq', "pqc$zconf", $outfile, @filelist); #p is required. q for quiet operation.
-  my $size = -s $outfile;
-  $size || unlink($outfile);
-  if($? || (! -f $outfile)){
+  system('zpaq', "pqc$zconf", $output_file, @filelist); #p is required. q for quiet operation.
+  my $size = -s $output_file;
+  $size || unlink($output_file);
+  if($? || (! -f $output_file)){
     print("  zpaq error.\n");
-    unlink($outfile);
+    unlink($output_file);
     return(1);
   }
 #  print("  zpaq size $size.");
@@ -1632,15 +1637,15 @@ sub omnicompress(){
   #This includes the notoriously slow zpaq. On maximum settings.
   #The sheer slowness of this cannot be overstated.
   #https://www.nongnu.org/lzip/xz_inadequate.html
-  my $infile=File::Spec->rel2abs($_[0]);
-  -f $infile || return($infile);
-  my $infilename=$infile;
+  my $input_file=File::Spec->rel2abs($_[0]);
+  -f $input_file || return($input_file);
+  my $input_filename=$input_file;
   my $tempfolder="$tmpfolder/omni-$$-$counter";$counter++;
-  -e $tempfolder && return($infile);
+  -e $tempfolder && return($input_file);
   mkdir($tempfolder);
-  $infilename =~ s/.*\///;
-  my $tempfile="$tempfolder/$infilename";
-  -e $tempfile && return($infile);
+  $input_filename =~ s/.*\///;
+  my $tempfile="$tempfolder/$input_filename";
+  -e $tempfile && return($input_file);
   testcommand('gzip');
   testcommand('bzip2');
   testcommand('lzip');
@@ -1650,12 +1655,12 @@ sub omnicompress(){
   testcommand('zpaq');
   my $zconf='/usr/share/doc/zpaq/examples/max.cfg';
   -f $zconf || ($zconf='');
-  copy($infile, $tempfile);
-  if(-s $infile != -s $tempfile){
+  copy($input_file, $tempfile);
+  if(-s $input_file != -s $tempfile){
     unlink($tempfile);
-    return($infile);
+    return($input_file);
   }
-  print("  OmniCom: $infile (via $tempfile).\n");
+  print("  OmniCom: $input_file (via $tempfile).\n");
   system('gzip', $tempfile, '-k9');
   if(!$? && (-s $tempfile.'.gz' < 4294967296)){
     system('advdef', '-z4', '-q', $tempfile.'.gz');
@@ -1675,37 +1680,37 @@ sub omnicompress(){
   system('zpaq', "pqc$zconf", $tempfile.'.zpaq', $tempfile);
   $best=omni_whichisbigger($tempfile.'.zpaq', $best);
   unlink($tempfile);
-  if(-s $best >= -s $infile){
+  if(-s $best >= -s $input_file){
     print("  OmniCom: Unsuccessful. None of the attempted compression utilities achieved any saving.");
     unlink($best);
     rmdir($tempfolder);
-    return($infile);
+    return($input_file);
   }
   my $bestex=$best;
   $bestex =~ s/.*\.//;
-  my $outfile=$infile.'.'.$bestex;
+  my $output_file=$input_file.'.'.$bestex;
   print("  OmniCom: Best file is $best/$bestex.\n");
-  if(-e $outfile){
-    print("  OmniCom: Output file $outfile exists.\n");
+  if(-e $output_file){
+    print("  OmniCom: Output file $output_file exists.\n");
     unlink($best);
     rmdir($tempfolder);
-    return($infile);
+    return($input_file);
   }
-  print("  OmniCom: Saving to $outfile.\n");
+  print("  OmniCom: Saving to $output_file.\n");
   my $check = -s $best;
-  move($best, $outfile);
-  if($check != -s $outfile){
-    unlink($outfile);
+  move($best, $output_file);
+  if($check != -s $output_file){
+    unlink($output_file);
   }
-  if(! -f $outfile){
+  if(! -f $output_file){
     print("  OmniCom: Move failed.\n");
     unlink($best);
     rmdir($tempfolder);
-    return($infile);
+    return($input_file);
   }
   rmdir($tempfolder);
-  unlink($infile);
-  return($outfile);
+  unlink($input_file);
+  return($output_file);
 }
 
 sub testcommand($){
@@ -1718,6 +1723,12 @@ sub testcommand($){
   }
   print("Minuimus requires $totest. Install dependency or 'make deps' and retry.\n");
   exit(1);
+}
+
+sub testcommand_nonessential($){
+  my $totest=$_[0];
+  `which $totest`;
+  return(! $?);
 }
 
 
@@ -1755,15 +1766,15 @@ sub process_html(){
   #Convert upper-case characters in HTML tags to lower-case. This saves us zero bytes. But it does render the HTML slightly more compressible.
   #So it's an indirect space saving. And if it can knock another hundred-odd bytes off an epub, I'm doing it.
   #This is not a full HTML parser(See html_line_lc for reasons) so it'll just abort if it sees a script.
-  my $infilename=$_[0];
+  my $input_filename=$_[0];
   my $tempfilename="$tmpfolder/$$-$counter.html";
   $counter++;
   if(-f $tempfilename){print("  Temp file already exists. This should never happen.\n");return(0);}
 
-  open(infile, "<:encoding(UTF-8)", $infilename);
-  open(outfile, ">:encoding(UTF-8)", $tempfilename);
+  open(input_file, "<:encoding(UTF-8)", $input_filename);
+  open(output_file, ">:encoding(UTF-8)", $tempfilename);
   my $changed=0;
-  while (<infile>){
+  while (<input_file>){
     my $rest=$_;
     my $initial=$rest;
     my $out='';
@@ -1771,34 +1782,34 @@ sub process_html(){
       (my $fixed, $rest, my $abort)=html_line_lc($rest);
       if($abort){
         print("  HTML file processing skipped as a precaution\n  ($fixed).\n");
-        close(infile);
-        close(outfile);
+        close(input_file);
+        close(output_file);
         unlink($tempfilename);
         return(0);
       }
       $out=$out.$fixed;
     }
-    print outfile $out;
+    print output_file $out;
     if($out ne $initial){
       $changed++;
     }
     if(lc($out) ne lc($initial)){
       print("  Something went horribly wrong. Aborting HTML processing. Possibly invalid character encoding encountered?\n");
-      close(infile);
-      close(outfile);
+      close(input_file);
+      close(output_file);
       unlink($tempfilename);
       return(0);
     }
   }
-  close(infile);
-  close(outfile);
+  close(input_file);
+  close(output_file);
   if(!($changed)){
     print("  HTML is already correctly lower-case. Nothing changed.\n");
     unlink($tempfilename);
     return(0);
   }
   print("  Modified $changed line(s).\n");
-  move($tempfilename, $infilename);
+  move($tempfilename, $input_filename);
   return($changed);
 }
 
@@ -1931,7 +1942,7 @@ sub repack_webm(){ #Certain particually poor video encoding programs produce bad
   testcommand('ffmpeg');
   my $tempfile="$tmpfolder/minu-repackwebm-$$-$counter.webm";
   $counter++;
-  my $ret=system('ffmpeg', '-i', $file, '-c', 'copy', $tempfile);
+  my $ret=system('ffmpeg', '-i', $file, '-map', '0', '-c', 'copy', $tempfile);
   if($ret || (! -s $tempfile)){unlink($tempfile);}
   if(-s $tempfile >= -s $file){unlink($tempfile);}
   if(! -f $tempfile) {return;}
@@ -2048,7 +2059,7 @@ sub processvideo(){
     return($oldname);
   }
   push(@args, $tempfile);
-  my $ret=system(@args);
+  $ret=system(@args);
   if($ret){
     print("  Encode failed (Returned $ret).\n");
     unlink($tempfile);
@@ -2096,8 +2107,8 @@ sub recode_audio($){
     print("  File bitrate is too low to justify a re-encode even with audio-agg: Go find a clean source.\n");
     return($file);
   }
-  my $outfile=substr($file, 0, rindex($file, '.')).'.opus';
-  if(-e $outfile){
+  my $output_file=substr($file, 0, rindex($file, '.')).'.opus';
+  if(-e $output_file){
     print("  Output file exists. Skipping reencode.\n");
     return($file);
   }
@@ -2114,7 +2125,7 @@ sub recode_audio($){
   #Note that opus's default setting is VBR though, so specifying 128kbps is more of a guideline.
   my $isnotmono=isnotmonoable($file); #See function for return values, as there are a lot of them. 7 means already mono. 0 means turn mono.
   my @args=('ffmpeg', '-i', $file);
-  my $rate=128; #For stereo
+  $rate=128; #For stereo
   if($isnotmono == 7 || $isnotmono==0) {$rate = 64} #For mono
   if($options{'audio-agg'}){$rate = 24} #Aggressive mode: Intended for voice, where a little artifacting is forgivable. Anything under 24 means sacrificing bandwidth though.
   if($isnotmono == 0){
@@ -2124,17 +2135,17 @@ sub recode_audio($){
   push(@args, '-codec:a', 'libopus', '-b:a', $rate.'k', '-frame_duration', '60');
   push(@args, '-metadata', 'encoded_from_name='.$oldname_shortened);
   push(@args, '-metadata', 'encoded_from_sha256='.getsha256($file));
-  push(@args, $outfile);
+  push(@args, $output_file);
   my $ret=system(@args);
-  if(! -f $outfile){
+  if(! -f $output_file){
     $ret=1;
   }
-  if(-s $outfile > -s $file){
+  if(-s $output_file > -s $file){
     print("  File somehow got larger?\n");
     $ret=1;
   }
   if($ret){
-    unlink($outfile);
+    unlink($output_file);
     print("  OPUS encode failed.\n");
     return($file);
   }
@@ -2143,7 +2154,7 @@ sub recode_audio($){
   # 2: ffmpeg automatically reads the ID3 info (Of all ID3 versions) and turns it into tag pairs for Opus.
   # 3: Because ffmpeg is already a dependency for FLAC and video, so I can avoid creating yet another.
   unlink($file);
-  return($outfile);
+  return($output_file);
 }
 
 sub process_mp3($){
@@ -2373,8 +2384,8 @@ sub process_stl($){
   print "Converting STL. Name: $name\n";
   my $numtris=0;
   my @triangle;
-  my @outfile;
-  #push(@outfile, "                                                                                ");
+  my @output_file;
+  #push(@output_file, "                                                                                ");
   while(<$fh>){
     s/ +/ /g;
     s/^ *//g;
@@ -2395,11 +2406,11 @@ sub process_stl($){
       $triangle[3] =~ s/^[ e]*//g;
       $triangle[4] =~ s/[^0-9e -.]//g;
       $triangle[4] =~ s/^[ e]*//g;
-      push(@outfile, pack("f<f<f<", split(/ /,$triangle[0])));
-      push(@outfile, pack("f<f<f<", split(/ /,$triangle[2])));
-      push(@outfile, pack("f<f<f<", split(/ /,$triangle[3])));
-      push(@outfile, pack("f<f<f<", split(/ /,$triangle[4])));
-      push(@outfile, chr(0).chr(0));
+      push(@output_file, pack("f<f<f<", split(/ /,$triangle[0])));
+      push(@output_file, pack("f<f<f<", split(/ /,$triangle[2])));
+      push(@output_file, pack("f<f<f<", split(/ /,$triangle[3])));
+      push(@output_file, pack("f<f<f<", split(/ /,$triangle[4])));
+      push(@output_file, chr(0).chr(0));
       @triangle=();
       $numtris++;
     }
@@ -2414,9 +2425,9 @@ sub process_stl($){
   $counter++;
   print("  Writing output via $tempfile\n");
   my $header=substr('STL:'.$name.'                                                                                ', 0, 80);
-  unshift(@outfile, $header, pack("L<", $numtris));
+  unshift(@output_file, $header, pack("L<", $numtris));
   open(FH, ">", "$tempfile") || return;
-  print FH @outfile;
+  print FH @output_file;
   close(FH);
   if(-s $tempfile ne (($numtris * 50) + 84)){
     unlink($tempfile);
