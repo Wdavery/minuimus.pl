@@ -1,8 +1,8 @@
-**Note:** This is not the official repository. The original creator is known as CodeBird and [can be found here](https://birds-are-nice.me/software/minuimus.html).  
+**Note:** This is not the official repository. The original creator is known as Codebird and hosts Minuimus [here](https://birds-are-nice.me/software/minuimus.html).  
 This repository was created to improve the documentation of dependencies and command line options, primarily to help create a reproducible dockerfile. Additionally, to serve as installation instructions for other users who may find the documentation at the source lacking, especially for a full installation with the numerous optional dependencies.
 
 Two branches exist:
-- `codebird-mirror`, containing the contents of `minuimus.zip` from [the source](https://birds-are-nice.me/software/minuimus.html) (starting at v3.2.1)
+- `codebird-mirror`, containing the contents of [minuimus.zip provided by Codebird](https://birds-are-nice.me/software/minuimus.zip) (starting at v3.2.1)
 - `main`, containing my dockerfile, documentation, and changes to the code
 
 Script changes (from top to bottom):
