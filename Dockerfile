@@ -32,6 +32,7 @@ echo "**** install required and optional packages ****" && \
  lzip \
  optipng \
  p7zip-full \
+ parallel \
  perl \
  poppler-utils \
  qpdf \
