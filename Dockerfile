@@ -4,7 +4,7 @@ RUN \
 echo "************************************************************" && \
 echo "****  update and install build packages ****" && \
 apt-get update -qy && \
-apt-get install -qy \
+apt-get install -qy --no-install-recommends \
  bazel-bootstrap \
  curl \
  g++ \
@@ -15,7 +15,7 @@ apt-get install -qy \
  wget && \
 echo "************************************************************" && \
 echo "**** install required and optional packages ****" && \
- apt-get install -qy \
+ apt-get install -qy --no-install-recommends \
  advancecomp \ 
  brotli \
  bzip2 \
@@ -96,8 +96,8 @@ rm -r /tmp/knusperli-src && \
 echo "************************************************************" && \
 echo "**** Cleanup ****" && \
 apt-get purge -qy \
- curl \
  bazel-bootstrap \
+ curl \
  g++ \
  gcc \
  git \
