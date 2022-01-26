@@ -20,10 +20,6 @@ Script changes (from top to bottom):
     - [Supported file types](#supported-file-types)
     - [Command Line Options](#command-line-options)
     - [Dependencies](#dependencies)
-      - [Build Dependencies](#build-dependencies-)
-      - [Hard Dependency](#hard-dependency-)
-      - [Core Dependencies](#core-dependencies-)
-      - [Optional Dependencies](#optional-dependencies-)
 
 Minuimus is a file optimizer utility script written in Perl. By default, it can be pointed to a file and it will transparently reduce the file size, leaving all pixels/text/audio/metadata intact. Using command line options, it can also run lossy optimizations and conversions.
 
