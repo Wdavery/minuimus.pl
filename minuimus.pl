@@ -118,6 +118,16 @@
 # 3.3  Re-fixed the bug with multiple audio: It wasn't fixed after all. Now it is.
 #      advdef z4k changed to z4
 #      Fixed a number of not-at-all-serious warnings visible with 'use warnings.'
+# 3.4  Fixed a bug which caused very large (>=16384 pixels longest dimension) JPEG files to be incorrectly identified as false grey. Fortunatly the conversion rarely actually happened.
+#      PDF now processes files without object streams. This results in slightly worse compression of objects (no more zopfli on object streams) but exposes all the metadata for deletion.
+#      The gains outweigh the losses.
+#      Added more leeway for MP3 bitrate detection.
+#      Turned the MP3 and WebM optimisers into one function - they work in the same manner.
+#      New option: --srr enables 'selective resolution reduction.' It scales images down, if doing so is a lossless (or very near lossless) process.
+#      That means pictures of flat colors, or gradients. Sometimes pixel art.
+#      Pdfsizeopt location detection. Pdfsizeopt is fiddly - there's no standard installation folder, it depends on distro.
+#      Will now use imgdataopt option for pdfsizeopt, if it's installed. Another optional dependency: You don't need it, may improve compression.
+#      pdfsizeopt output >1MiB will now be linearized by qpdf.
 
 use File::Spec;
 use File::Copy;
@@ -135,6 +145,14 @@ my $tmpfolder='/tmp'; #Temp folder. No trailing /.
 my $qpdfvers=0;
 my $pdfsizeopt;
 my $pdfsizeoptpath='/var/opt/pdfsizeopt/pdfsizeopt';
+
+if(! -x $pdfsizeoptpath){
+  $pdfsizeoptpath='/usr/bin/pdfsizeopt/pdfsizeopt';
+}
+if(! -x $pdfsizeoptpath){
+  $pdfsizeoptpath=`which pdfsizeopt`;
+  $pdfsizeoptpath =~ s/\n//;
+}
 
 if (!@ARGV) {
   print("  minuimus.pl: condēnstor optimum tardissimum.\n\n  The best, slowest, compresser.\n", #Condēnsō with -tor suffix. New Latin, I can make up words if I want to.
@@ -213,6 +231,7 @@ my $im_convert='convert-im6';
 if($?){$im_identify='identify'};
 `which $im_convert`;
 if($?){$im_convert='convert'};
+my $sha256sum='sha256sum';
 
 `which leanify`;
 if($?){
@@ -243,11 +262,13 @@ sub compressfile($%) {
   if($options{'fix-ext'}){
     $file=fix_proper_ext($file);
   }
+  
   my $freespace=getfreespace();
   if($freespace < $initialsize/256){
     print("Possible insufficient free space on $tmpfolder - aborting. Will not attempt to process a file without 2x file size free. File $initialsize, free $freespace.\n");
     return;
   }
+
   my $oldtime;
   if($options{'keep-mod'}){
      $oldtime=stat($file)->mtime;
@@ -264,6 +285,15 @@ sub compressfile($%) {
   if($ext eq 'woff'){
     process_woff($file);
   }
+
+  if($ext eq 'mp3' ||
+     $ext eq 'mp4' ||
+     $ext eq 'webm'
+     #$ext eq 'avi' #After testing on a large collection of AVI files, including vintage ones, this does make many of them smaller - by about one-tenth of a percent. Not worth the effort.
+     ){
+    process_multimedia($file);
+  }
+
   if($options{'audio'}){
     if($ext eq 'mp3'){
       $file=recode_audio($file);
@@ -274,9 +304,6 @@ sub compressfile($%) {
     }
     $ext=lc($file);
     $ext=~s/^.*\.//;
-  }
-  if($ext eq 'mp3'){
-    process_mp3($file);
   }
   if($ext eq 'tiff' || #This is the only handler for TIFF.
      $ext eq 'gif'){  #It also applies the first effort on optimising GIF, but better tools follow further down.{
@@ -299,8 +326,14 @@ sub compressfile($%) {
     $file=img2png($file);
     $ext=lc($file);
     $ext=~s/^.*\.//;
-
   }
+  
+  if (($ext eq 'png' ||
+    $ext eq 'webp') &&
+    $options{'srr'}) {
+    while(SRR_image($file)){};
+  }
+
   if ($ext eq 'png') {
     compress_png($file);
     $options{'discard-meta'} && leanify($file);
@@ -330,8 +363,7 @@ sub compressfile($%) {
   }
   if ($ext eq 'pdf') {
     compress_pdf($file, $options{'discard-meta'});
-    pdfsizeopt($file);
-
+    pdfsizeopt($file) && pdfsizeopt($file, 1);
   }
   if ($ext eq 'flac') {
     compress_flac($file);
@@ -368,9 +400,7 @@ sub compressfile($%) {
     }
     leanify($file);
   }
-  if ($ext eq 'webm'){
-    repack_webm($file);
-  }
+
   if($options{'video'} &&(
     $ext eq 'avi' ||
     $ext eq 'mpg' ||
@@ -532,6 +562,7 @@ sub fileisgrey(){
     return(0);
   }
   binmode($pipe);
+  my $tot=0;
   while(!eof($pipe)){
     my $a;my $b;my $c;
     my $check=read($pipe, $a, 1);
@@ -541,8 +572,12 @@ sub fileisgrey(){
       close($pipe);
       return(0);
     }
+    $tot++;
   }
   close($pipe);
+  if($tot < 64){
+    return(0);
+  }
   return(1);
 }
 
@@ -711,8 +746,8 @@ sub compress_cab(){
   if($ret && -f $tempfile){unlink($tempfile)};
   if(-s $input_file <= -s $tempfile){unlink($tempfile)};
   if(!-f $tempfile){return;}
-  my $a = `cabextract "$input_file" -p | sha256sum`;
-  my $b = `cabextract "$tempfile" -p | sha256sum`;
+  my $a = `cabextract "$input_file" -p | $sha256sum`;
+  my $b = `cabextract "$tempfile" -p | $sha256sum`;
   if($a ne $b){
     unlink($tempfile);
     printf("CAB file reduction failed in verification.\n");
@@ -968,7 +1003,7 @@ sub process_woff(){
   system('minuimus_woff_helper', $file);
 }
 
-sub compress_png() {
+sub compress_png($) {
   my $file=$_[0];
 #  $tested_png || test_png();
   testcommand('optipng');
@@ -1174,11 +1209,7 @@ sub compress_pdf() {
   }
 #  my $ret=system('qpdf', $file, '--stream-data=compress', '--object-streams=generate', '--decode-level=specialized', '--compression-level=9', '--linearize',$tempfile);
   my $ret;
-  if($discard_meta){
-    $ret=system('qpdf', $file, '--stream-data=compress', '--object-streams=disable', '--decode-level=specialized', '--linearize',$tempfile);
-  }else{
-    $ret=system('qpdf', $file, '--stream-data=compress', '--object-streams=generate', '--decode-level=specialized', '--linearize',$tempfile);
-  }
+  $ret=system('qpdf', $file, '--stream-data=compress', '--object-streams=disable', '--decode-level=specialized', '--linearize',$tempfile); #Unpacking object streams to allow metadata removal.
   my $pdfhash;
   if(-f $tempfile && $ret){
     print("    qpdf exited non-zero. Checking output integrity.\n");
@@ -1258,11 +1289,7 @@ sub compress_pdf() {
     }
   }
   close($fh);
-  my $object_stream_mode='--object-streams=preserve';
-  if($discard_meta){
-    $object_stream_mode='--object-streams=generate';
-  }
-  
+
   if(!$qpdfvers){
     my $vers=`qpdf --version`;
     $vers=~ m/version (\d+)/i;
@@ -1270,10 +1297,10 @@ sub compress_pdf() {
     print("  Detected qpdf version >=$qpdfvers\n");
   }
 
-  if($qpdfvers>=9){ #Automatic version detection pending.
-    system('qpdf', $tempfile, '--stream-data=preserve', $object_stream_mode, '--decode-level=none', '--compression-level=9', '--linearize',  $tempfile2);
+  if($qpdfvers>=9){
+    system('qpdf', $tempfile, '--stream-data=preserve', '--object-streams=generate', '--decode-level=none', '--compression-level=9', '--linearize',  $tempfile2);
   }else{
-    system('qpdf', $tempfile, '--stream-data=preserve', $object_stream_mode, '--decode-level=none', '--linearize',  $tempfile2);
+    system('qpdf', $tempfile, '--stream-data=preserve', '--object-streams=generate', '--decode-level=none', '--linearize',  $tempfile2);
   }
   unlink($tempfile);
   my $was= -s $file;
@@ -1438,34 +1465,54 @@ sub substring_replace(){
 sub pdfsizeopt(){
   #Runs pdfsizeopt, if it's available.
   my $in_file=$_[0];
-  is_pdfsizeopt_installed() || return;
+  my $no_jbig2=$_[1];
+
+  is_pdfsizeopt_installed() || return(0);
 #  my $initialcwd=getcwd();
   my $tempfile="$tmpfolder/minu-sizeopt-$$-$counter.pdf";
+  my $tempfile2="$tmpfolder/minu-sizeopt-$$-$counter-b.pdf";
   $counter++;
+  my @args=($pdfsizeoptpath, '--quiet');
   my $optimisers='--use-image-optimizer=optipng,advpng';
   `which pngout`;
   if(! $?) {$optimisers = $optimisers.",pngout";}
-  `which jbig2`;
-  if(! $?) {$optimisers = $optimisers.",jbig2";}
-  print("  Invoking pdfsizeopt ($optimisers)\n");
-  system($pdfsizeoptpath, '--quiet', $optimisers, $in_file, $tempfile);
+ `which imgdataopt`;
+  if(! $?) {$optimisers = $optimisers.",imgdataopt";}
+  if(!$no_jbig2){
+    `which jbig2`;
+    if(! $?) {$optimisers = $optimisers.",jbig2";}
+  }else{
+    print("    Retrying pdfsizeopt without jbig2 and font optimisations (As these are the most likely to cause a crash).\n");
+    push(@args, '--do-optimize-fonts=no');
+  }
+  print("    Invoking pdfsizeopt ($optimisers)\n");
+  push(@args, $optimisers);
+  push(@args, $in_file, $tempfile);
+  system(@args);
   if((-s $tempfile) == 0){
     print("    pdfsizeopt failed.\n");
     unlink($tempfile);
-    return;
+    return(1);
+  }
+  if(-s $tempfile > 1024*1024){
+    system('qpdf', $tempfile, '--linearize', '--stream-data=preserve',$tempfile2);
+    move($tempfile2, $tempfile);
   }
   if((-s $tempfile) >= (-s $in_file)){
     print("    pdfsizeopt was unable to achieve any space saving.\n");
     unlink($tempfile);
-    return;
+    return(0);
   }
   if(pdfcompare($in_file, $tempfile)){
     print("    pdfsizeopt successful. Size optimised from ".(-s $in_file)." to ".(-s $tempfile).".\n");
     move($tempfile, $in_file);
+    unlink($tempfile);
+    return(0);
   }else{
     print("    pdfsizeopt failed: Optimised PDF validation shows it does not match original.\n");
+    unlink($tempfile);
+    return(1);
   }
-  unlink($tempfile);
 }
 
 sub is_pdfsizeopt_installed(){
@@ -1610,9 +1657,9 @@ sub pdfcompare(){
   if(!(-f $filea) || !(-f $fileb) || $filea =~ m/[";]/i ||$fileb =~ m/[";]/i ){return(0)}
   my $hasha=$_[2];
   if(!$hasha){
-    $hasha=`pdftoppm "$filea" -q | sha256sum`;
+    $hasha=`pdftoppm "$filea" -q | $sha256sum`;
   }
-  my $hashb=`pdftoppm "$fileb" -q | sha256sum`;
+  my $hashb=`pdftoppm "$fileb" -q | $sha256sum`;
   if($hasha ne $hashb){return(0)}
   return($hasha);
 }
@@ -1913,27 +1960,14 @@ sub do_comparison_hash(){
     my $tempfile="$tmpfolder/minuimus-comptemp-$$-$counter.bmp";
     $counter++;
     system($im_convert, $_[0], $tempfile);
-    my $hasha=`sha256sum $tempfile`;
+    my $hasha=`$sha256sum $tempfile`;
     unlink($tempfile);
     system($im_convert, $_[1], $tempfile);
-    my $hashb=`sha256sum $tempfile`;
+    my $hashb=`$sha256sum $tempfile`;
     unlink($tempfile);
     return($hasha ne $hashb);
   }else{return(0);}
 }
-
-sub repack_webm(){ #Certain particually poor video encoding programs produce bad WebM files - corrupt timecodes, so seeking is impossible. This fixes them.
-  my $file=$_[0];
-  testcommand('ffmpeg');
-  my $tempfile="$tmpfolder/minu-repackwebm-$$-$counter.webm";
-  $counter++;
-  my $ret=system('ffmpeg', '-i', $file, '-map', '0', '-c', 'copy', $tempfile);
-  if($ret || (! -s $tempfile)){unlink($tempfile);}
-  if(-s $tempfile >= -s $file){unlink($tempfile);}
-  if(! -f $tempfile) {return;}
-  move($tempfile, $file);  
-}
-
 
 sub processvideo(){
   print "Processing video: $_\n";
@@ -1998,7 +2032,7 @@ sub processvideo(){
   }
   my $tempfile="$tmpfolder/video$$-$counter.webm";
   $counter++;
-  my @args=('ffmpeg', '-i', $oldname, '-map', '0');  
+  my @args=('ffmpeg', '-i', $oldname, '-map', '0');
   my $subname=substr($oldname, 0, rindex($oldname, '.')).'.srt';
   #  push(@args, '-strict', '-2');
 
@@ -2017,10 +2051,9 @@ sub processvideo(){
       push(@args, '-ac', '1','-codec:a', 'libopus', '-frame_duration', '60');
     }
   }
-  push(@args, '-c:v', 'av1', '-lag-in-frames', '19', '-b:v', '0', '-tiles', '2x2');
-  my $crf=28;
+  push(@args, '-c:v', 'av1', '-lag-in-frames', '19', '-b:v', '0', '-tiles', '2x2', '-g', '600');
+  my $crf=29;
   if($options{'video-agg'}){$crf=34;}
-
   push(@args,  '-crf', $crf); #Default is 32, but going for a bit higher quality here.
                               #Remember the aim is to recompress ancient DivX/XVID/MPEG1/MPEG2.
                               #Even on a high quality setting, AV1 will hit a lower bitrate than those.
@@ -2084,7 +2117,7 @@ sub recode_audio($){
   my $rate= int(($sizelen) / ($timelen*128)); #Rate in kbps. Why this roundabout way of calculating? Because VBR, and because I don't trust the metadata.
   if($rate<4) {$rate=64}; #Bitrate detection seems to fail in a few low-bitrate files.
   print("  Approx bitrate: $rate\n");
-  if(!$options{'audio-agg'} && $rate < 255){
+  if(!$options{'audio-agg'} && $rate < 230){
     print("  File bitrate is too low to justify a re-encode: Go find a clean source.\n");
     return($file);
   }
@@ -2142,14 +2175,33 @@ sub recode_audio($){
   return($output_file);
 }
 
-sub process_mp3($){
+sub process_multimedia($){
   my $file=$_[0];
-  my $tempfile="$tmpfolder/$$-$counter.mp3";
+  my $extension=lc($file);
+  $extension =~ s/.*\.//;
+  my $tempfile="$tmpfolder/$$-$counter.$extension";
   $counter++;
   testcommand('ffmpeg');
-  my $ret=system('ffmpeg', '-loglevel', 'quiet', '-i', $file, '-c', 'copy', $tempfile);
+  print("  Processing media file via $tempfile.\n");
+  my @args=('ffmpeg', '-loglevel', 'quiet', '-i', $file, '-map', '0', '-c', 'copy');
+  if($extension eq 'avi'){
+    testcommand('ffprobe');
+    my $ret=`ffprobe "$file" 2>&1`;
+    if(!$ret || $?){
+      print("  Unable to get streams - not a supported file?\n");
+      return;
+    }
+    if(index($ret, 'Video: mpeg4') != -1){
+      print("  AVI file with mpeg4. Adding mpeg4_unpack_bframes.\n");
+      push(@args, '-bsf:v', 'mpeg4_unpack_bframes');
+    }
+  }
+  push(@args, $tempfile);
+  my $ret=system(@args);
   if($ret){
-    print("  Possible error in MP3, will attempt to process anyway: $file\n");
+    print("  Possible error in file, will not attempt to process: $file\n");
+    unlink($tempfile);
+    return;
   }
   if(! -f $tempfile || (-s $tempfile < 1000)){
     print("  Decode failed. File is likely to be corrupt: $file\n");
@@ -2164,7 +2216,7 @@ sub process_mp3($){
   }
   my $in_len=get_media_len($file);
   my $out_len=get_media_len($tempfile);
-  if(abs($in_len - $out_len) > 1){
+  if(abs($in_len - $out_len) > 3){
   print("  Length differs after transcode, possible damaged or malformed file: $file\n");
     unlink($tempfile);
     return;
@@ -2264,6 +2316,7 @@ sub isstreamok(){ #These are the streams we are OK to mess with.
   m/: Video: vp6f[ ,]/ && return(1); #Old codec from 2003, sometimes found in old FLV files.
   m/: Video: flv1[ ,]/ && return(1); #Another codec from old FLV files.
   m/: Subtitle: text/ && return(1); #ffmpeg can convert this into webvtt, the one format WebM allows.
+  ( m/: Video: h264 / && $options{'video-agg'}) && return(1);
   return(0);
 }
 
@@ -2419,6 +2472,97 @@ sub process_stl($){
   print("  STL file written.\n");
   move($tempfile, $file);
   unlink($tempfile);
+}
+
+sub SRR_image(){
+  #Selective resolution reduction.
+  #Turns images into half-resolution, but only if doing so won't degrade the quality by any significent amount.
+  #Essentially it finds images which are of far higher resolution than they ought to be.
+  my $filename=$_[0];
+  my $ext=lc($filename);
+  $ext =~ s/.*\.//;
+  my $tmp_a="$tmpfolder/$$-$counter-A.png"; #Resized file
+  my $tmp_b="$tmpfolder/$$-$counter-B.raw"; #Re-resized file
+  my $tmp_c="$tmpfolder/$$-$counter-C.raw"; #Original file, in raw format
+  my $tmp_d="$tmpfolder/$$-$counter-D.$ext"; #The final resized file.
+  my @res=get_img_size($filename);
+  if(!$res[0]){
+    print("  Unable to determine image size for SRR. Possibly corrupt file.\n");
+    return(0);
+  }
+  my $newW=$res[0]/2;
+  my $newH=$res[1]/2;
+  if($newW==$res[0] ||
+     $newH==$res[1] ||
+     $res[0]==1 ||
+     $res[1]==1){
+     return(0); #This image is as small as it's getting.
+  }
+  my $r;
+  $r=system($im_convert, $filename, '-sample', $newW.'x'.$newH.'!', "$tmp_a");
+  if($r){printq("  SRR error 1\n");unlink($tmp_a);return(0);}
+  $r=system($im_convert, $tmp_a, '-sample', $res[0].'x'.$res[1].'!', "rgba:$tmp_b");
+  unlink($tmp_a);
+  if($r){printq("  SRR error 2\n");unlink($tmp_b);return(0);}
+
+  $r=system($im_convert, $filename, "rgba:$tmp_c");
+
+  if(-s $tmp_b != ($res[0]*$res[1]*4) ||
+     -s $tmp_c != ($res[0]*$res[1]*4)){
+    printq("  SRR error 3.\n");
+    unlink($tmp_b);unlink($tmp_c);
+    return(0);
+  }
+  open FILE1, "<:raw", $tmp_b;
+  open FILE2, "<:raw", $tmp_c;
+
+  my $byte1;
+  my $byte2;
+  for(my $c=0;$c<($res[0]*$res[1]*4);$c++){
+    read(FILE1, $byte1, 1);
+    read(FILE2, $byte2, 1);
+    if(abs(ord($byte1)-ord($byte2)) > 2){
+      close(FILE1);close(FILE2);
+      unlink($tmp_b);unlink($tmp_c);
+      #print("$filename: Not reducable.\n");
+      return(0);
+    }
+  }
+  close(FILE1);close(FILE2);
+  unlink($tmp_b);unlink($tmp_c);
+  my @final_command;
+  push(@final_command, $im_convert, $filename, '-sample', $newW.'x'.$newH.'!');
+  if($ext eq 'webp'){
+    push(@final_command, '-define', 'webp:lossless=true', '-define', 'webp:method=6');
+  }
+  push(@final_command, $tmp_d);
+  $r=system(@final_command);
+  $r && unlink($tmp_d);
+  -f $tmp_d || return(0);
+  if($ext eq 'png'){
+    compress_png($tmp_d);
+  }
+  if(-s $tmp_d < -s $filename){
+    print("  $filename: SRR successful, scaled to 1/2 size.\n");
+    move($tmp_d, $filename);
+    unlink($tmp_d);
+    return(1);
+  }else{
+    print("  SRR attempted, but no space saving was achieved.\n");
+    unlink($tmp_d);
+    return(0);
+  }
+}
+
+sub get_img_size(){
+  my $file=$_[0];
+  my $res=`$im_identify -ping -format "\%w \%h" "$file"`;
+  $res =~ s/\n//g;
+  my @splitres=split(/ /, $res);
+  if($? || !$res || !$splitres[0] || !$splitres[1]){
+    return(0);
+  }
+  return(@splitres);
 }
 
 sub printq(){
