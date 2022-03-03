@@ -15,21 +15,14 @@ Two branches exist:
 - `codebird-mirror`, containing the contents of [minuimus.zip provided by Codebird](https://birds-are-nice.me/software/minuimus.zip) (starting at v3.2.1)
 - `main`, containing my dockerfile, documentation, and changes to the code
 
-Script changes (from top to bottom):
-- Adds release dates to version history (starting at v3.2.1)
-- Removes cruft from message when running minuimus.pl with no arguments
-- Alphabetizes command line options available via `--help`
-- Edits options text for clarity and brevity
-- Adds `--version` option to display version/date/credits
-- Adds `check-deps` option to check availablity of all required and optional dependencies
-- Moves check for `leanify` to subroutine to eliminate the warning message appearing when irrelevant
-- Adds subroutine `depcheck` utilized by `--check-deps` option
+For a list of my changes see [below](#changes)
 
 # minuimus.pl
 - [minuimus.pl](#minuimuspl)
     - [Supported File Types](#supported-file-types)
     - [Command Line Options](#command-line-options)
     - [Dependencies](#dependencies)
+    - [Changes](#changes)
 
 Minuimus is a file optimizer utility script written in Perl. By default, it can be pointed to a file and it will transparently reduce the file size, leaving all pixels/text/audio/metadata intact. Using command line options, it can also run lossy optimizations and conversions.
 
@@ -154,3 +147,21 @@ Optional dependencies will be used if installed, and skipped if not
     - `png22pnm` - required for `pdfsizeopt`
     - `sam2p` - required for `pdfsizeopt`
 - `pngout` - additional PNG processing ([Source](https://jonof.id.au/kenutils.html), also available as part of pdfsizeopt install)
+
+### Changes
+List of changes this repo makes—excluding the dockerfile, which was created from scratch.
+#### README
+- Edits the summary for readability
+- Merges basic list of supported file types with descriptions of processing, edits for readability, adds more formats
+- Adds command line options documentation
+- Adds list of dependencies, and how they are used
+#### minuimus.pl
+From top to bottom:
+- Adds release dates to version history (starting at v3.2.1)
+- Removes cruft from message when running minuimus.pl with no arguments
+- Alphabetizes command line options available via `--help`
+- Edits options text for clarity and brevity
+- Adds `--version` option to display version/date/credits
+- Adds `check-deps` option to check availablity of all required and optional dependencies
+- Moves check for `leanify` to subroutine to eliminate the warning message appearing when irrelevant
+- Adds subroutine `depcheck` utilized by `--check-deps` option
