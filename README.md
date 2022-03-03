@@ -117,7 +117,7 @@ Running `minuimus.pl --check-deps` will output a list of all called commands, in
 - `zpaq` - required for ZPAQ processing
 
 ##### Additional `--options` Core Dependencies 🟡
-If an option requires a dependency from [Core Dependencies](#core-dependencies) it is omitted here
+If an option requires a dependency from [Core Dependencies](#core-dependencies-) it is omitted here
 - `brotli` - required for `--omni-<ext>`
 - `bzip2` - required for `--omni-<ext>`
 - `file` - required for `--fix-ext` and `cbr-cbz`
