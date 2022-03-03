@@ -1,3 +1,13 @@
+```
+            _                _                                   _ 
+           (_)              (_)                                 | |
+ _ __ ___   _  _ __   _   _  _  _ __ ___   _   _  ___     _ __  | |
+| '_ ` _ \ | || '_ \ | | | || || '_ ` _ \ | | | |/ __|   | '_ \ | |
+| | | | | || || | | || |_| || || | | | | || |_| |\__ \ _ | |_) || |
+|_| |_| |_||_||_| |_| \__,_||_||_| |_| |_| \__,_||___/(_)| .__/ |_|
+                                                         | |       
+                                             by Codebird |_|       
+```
 **Note:** This is not the official repository. The original creator is known as Codebird and hosts Minuimus [here](https://birds-are-nice.me/software/minuimus.html).  
 This repository was created to improve the documentation of dependencies and command line options, primarily to help create a reproducible dockerfile. Additionally, to serve as installation instructions for other users who may find the documentation at the source lacking, especially for a full installation with the numerous optional dependencies.
 
