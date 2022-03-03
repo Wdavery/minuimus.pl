@@ -203,6 +203,7 @@ if($options{'help'}){
         "--png-webp      Converts PNG to WEBP. Ignores animated PNG. Aborts if the conversion results in a larger file than the optimized PNG\n",
         "--rar-7z        Converts RAR to 7z. Allows recursive optimizations. Aborts if larger than original. Compressed with PPMd and LZMA separately, smallest is kept\n",
         "--rar-zip       Converts RAR to ZIP. Likely results in larger file, but allows processing of files within the RAR. Converting to 7z likely superior\n",
+        "--srr           Enables 'selective resolution reduction.' Scales images down, if doing so is lossless (or near lossless). That means pictures of flat colors, gradients, and sometimes pixel art\n",
         "--video         Enables lossy video recompression of legacy formats into WEBM. For why you might want to do this, see the note in the source file\n",
         "--webp-in-cbz   Convert PNG files within CBZ to WEBP. Results in substantial savings, but poor compatibility—many viewers wont open them\n",
         "--zip-7z        Converts ZIP to 7z. Aborts if larger than the original\n\n");
