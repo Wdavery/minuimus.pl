@@ -139,5 +139,8 @@ Optional dependencies will be used if installed, and skipped if not
 - `minuimus_def_helper` - additional PDF processing (Optional part of Minuimus install)
 - `minuimus_swf_helper` - additional SWF processing (Optional part of Minuimus install)
 - `minuimus_woff_helper` - additional WOFF processing (Optional part of Minuimus install)
-- `pdfsizeopt` - additional PDF processing ([Source](https://github.com/pts/pdfsizeopt)) (Installed to `/var/opt/pdfsizeopt/pdfsizeopt`, configurable in minuimus.pl)
+- `pdfsizeopt` - additional PDF processing ([Source](https://github.com/pts/pdfsizeopt)) With deps:
+    - `imgdataopt` - addtional PDF processing
+    - `png22pnm` - required for `pdfsizeopt`
+    - `sam2p` - required for `pdfsizeopt`
 - `pngout` - additional PNG processing ([Source](https://jonof.id.au/kenutils.html), also available as part of pdfsizeopt install)
