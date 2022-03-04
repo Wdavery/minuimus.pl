@@ -142,7 +142,7 @@ Optional dependencies will be used if installed, and skipped if not
 - `minuimus_def_helper` - additional PDF processing (Optional part of Minuimus install)
 - `minuimus_swf_helper` - additional SWF processing (Optional part of Minuimus install)
 - `minuimus_woff_helper` - additional WOFF processing (Optional part of Minuimus install)
-- `mutool` - additional PDF processing
+- `mupdf-tools` - additional PDF processing ([Source](https://mupdf.com/releases/index.html))
 - `pdfsizeopt` - additional PDF processing ([Source](https://github.com/pts/pdfsizeopt)) With deps:
     - `imgdataopt` - addtional PDF processing ([Source](https://github.com/pts/imgdataopt))
     - `png22pnm` - required for `pdfsizeopt` ([Source](https://github.com/pts/tif22pnm))
