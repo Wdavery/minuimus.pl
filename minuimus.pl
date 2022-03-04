@@ -128,6 +128,13 @@
 #      Pdfsizeopt location detection. Pdfsizeopt is fiddly - there's no standard installation folder, it depends on distro.
 #      Will now use imgdataopt option for pdfsizeopt, if it's installed. Another optional dependency: You don't need it, may improve compression.
 #      pdfsizeopt output >1MiB will now be linearized by qpdf.
+#3.5   SRR is now animation-safe (The main reason for the hasty update)
+#      sha256sum no longer required: Will use openssl as an alternative.
+#      Rewrote part of the PDF code, again. Quite substantially. It had gotten too unwieldy to work with. Now it can process object streams right.
+#      Added a PDF pre-processing step with mutool, if available. It does object deduplication.
+#      Removed the PDF object cache. It was more trouble than it's worth.
+#      Incorporated the dependency checking code contributed by Wdavery.
+
 
 use File::Spec;
 use File::Copy;
@@ -189,32 +196,42 @@ $options{'recur-depth'}=1;
 if($options{'help'}){
   print("Minuimus, by default, performs only transparent conversions: It will never convert one type of file unless you explicitly enable this function.\n",
         "          These options enable file format conversion and other non-transparent features, which will alter the format of your files in order to make them more compact:\n\n",
-        "  --gif-png      Converts .gif files to .png, including animated gif to animated PNG. This will almost always result in a smaller file.\n",
-        "  --png-webp     Converts .png (Or, with above option, .gif) to .webp. Ignores animated PNG files. Aborts if the conversion would result in a larger file than the post-optimisation PNG.\n",
-        "  --rar-zip      Converts .rar to .zip. This will almost always make the file larger, but it does allow for the processing of files within the rar. Converting to 7z may be a better choice.\n",
-        "  --cbr-cbz      Converts .cbr to .cbz. This may make the file larger, but - as it allows for the use of the image-specific optimisations - usually makes them smaller. Also I just dislike RAR.\n",
-        "  --zip-7z       Converts zip to 7z, including recursive optimisations, but only if this results in a smaller file than the original.\n",
-        "  --rar-7z       Converts rar to 7z, including recursive optimisations, but only if this results in a smaller file than the original.\n",
-        "                 .rar and .7z typically use different compression algorithms (Generally PPMd vs LZMA), but they are both sophisticated and neither is clearly superior for all data.\n",
-        "                 Fortunately 7z supports both! So Minuimus will compress twice, once with LZMA and once with PPMd, and pick whichever performs best. So it'll almost always be smaller than RAR.\n",
-        "  --7z-7paq      Convert 7z to zpaq, only if this makes a smaller file. Still tries to optimise the 7z first. Zpaq is pretty much the highest-ratio archive-compresser that exists.\n",
-        "  --webp-in-cbz  Convert PNG files within CBZ to WebP. The resulting files will be very substantially smaller, but exhibit poor compatibility: Many CBZ viewers wont open them. Maybe one day.\n",
-        "  --jpg-webp     Convert JPG to WebP. Uses the knusperli jpeg decoder. This process is lossy, but only very slightly, as it uses WebP quality 90.\n",
-        "                 If the space saving is less than 10% of the file size - which will be true for all but the highest-quality-setting JPEGs - then the conversion is rejected and original kept.\n",
-        "  --jpg-webp-cbz Enables the above option when processing CBZ files. The space saving can be considerable, justifying the very slight loss of quality.\n",
-        "  --misc-png     Converts BMP and PCX files to PNG.\n",
-        "  --keep-mod     Preserve the modification time of files, even if they are altered.\n",
-        "  --omni-<ext>   Enables the 'omnicompressor' function for the specified file extension: Compress it with gzip, bzip2, lz, rz, 7z on PPMd and zpaq on max, and keep whichever is smallest.\n",
-        "                 This is a somewhat extreme option, for desperate people who have a need to save every last byte, no matter how long it takes. It's intended for archival use.\n",
-        "                 It's troublesome to extract, as whoever ends up with the files will probably need to install some software to do so. It's also unbelievably, ridiculously slow.\n",
-        "  --iszip-<ext>  Forces a specified extension to be processed as a ZIP file.\n",
-        "  --video        Enables lossy video recompression of legacy formats into WebM. For exactly why you might want to do this, see the note in the source file.\n",
-        "  --audio        Enables compression of high-quality MP3 (>=256kbps) to Opus 128kbps. This will also apply within archive files, for converting albums.\n",
-        "  --audio-agg    With --audio, converts MP3 to very low-bitrate Opus. Sound quality suffers. Intended for voice, never music. Also reencodes .m4b files. All metadata preserved.\n",
-        "  --discard-meta Discards metadata from image and PDF files. On PDF files can produce a considerable space saving! It only deletes the XML-based metadata, so the title remains.\n",
-        "  --fix-ext      Detects some common file types with the wrong extension, and corrects.\n\n");
+        "--help          Displays this help page\n",
+        "--version       Displays current version, release date and credits\n\n",
+        "The following options enable file format conversion and other non-transparent features, which will alter the format of your files in order further reduce filesize.\n\n",
+        "--7z-zpaq       Convert 7z to ZPAQ. Aborts if larger than original. Tries to optimize the 7z first.\n",
+        "--audio-agg     With --audio, converts MP3 to very low-bitrate OPUS. Sound quality suffers. Intended for voice, never music. Also re-encodes .m4b files.\n                All metadata preserved\n",
+        "--audio         Enables compression of high-quality MP3 (>=256kbps) to OPUS 128kbps. This will also apply within archive files, for converting albums\n",
+        "--cbr-cbz       Converts CBR to CBZ. Likely creates a larger file, but allows image optimizations??resulting in ultimately smaller file\n",
+        "--discard-meta  Discards metadata from image and PDF files. It only deletes the XML-based metadata, so the title remains\n",
+        "--fix-ext       Detects some common file types with the wrong extension, and corrects\n",
+        "--gif-png       Converts GIF files to PNG, including animated GIF to animated PNG. Likely results in a smaller file\n",
+        "--iszip-<ext>   Forces a specified extension to be processed as a ZIP file\n",
+        "--jpg-webp-cbz  Enables --jpg-webp when processing CBZ files. The space saving can be considerable, justifying the very slight quality loss\n",
+        "--jpg-webp      Convert JPG to WebP using the knusperli decoder. This process is slightly lossy, using WebP quality: 90.\n                If the size reduction is <10%, conversion is rejected\n",
+        "--keep-mod      Preserve the modification time of files, even if they are altered\n",
+        "--misc-png      Converts BMP and PCX files to PNG\n",
+        "--omni-<ext>    Enables the 'omnicompressor' function for maximum size reduction for the specified file extension. Extremely slow. Intended for archival use\n                Compresses with gzip, bzip2, lz, rz, 7z on PPMd and zpaq on max, keeps the smallest\n",
+        "--png-webp      Converts PNG to WEBP. Ignores animated PNG. Aborts if the conversion results in a larger file than the optimized PNG\n",
+        "--rar-7z        Converts RAR to 7z. Allows recursive optimizations. Aborts if larger than original. Compressed with PPMd and LZMA separately, smallest is kept\n",
+        "--rar-zip       Converts RAR to ZIP. Likely results in larger file, but allows processing of files within the RAR. Converting to 7z likely superior\n",
+        "--video         Enables lossy video recompression of legacy formats into WEBM. For why you might want to do this, see the note in the source file\n",
+        "--webp-in-cbz   Convert PNG files within CBZ to WEBP. Results in substantial savings, but poor compatibility??many viewers wont open them\n",
+        "--zip-7z        Converts ZIP to 7z. Aborts if larger than the original\n\n");
   exit(0);
 }
+
+if($options{'check-deps'}){
+    my @deps = ("7z","advdef","advpng","advzip","brotli","bzip2","cab_analyze","cabextract","cwebp","convert-im6","ffmpeg",
+            "ffprobe","file","flac","flexigif","gif2apng","gifsicle","gzip","identify-im6","jbig2","jbig2dec","jpegoptim",
+            "jpegtran","knusperli","leanify","lzip","minuimus_def_helper","minuimus_swf_helper","minuimus_woff_helper",
+            "optipng","$pdfsizeoptpath","pdftoppm","pngout","png22pnm","qpdf","rzip","sam2p","unrar","zip","zpaq");
+    foreach (@deps)
+    {
+        depcheck($_);
+    }
+}
+
 #If you're looking for the note on why these's a video mode: Error detection, in short. All it does really is run ffmpeg, but use this script and you get the benefit of some fancier integrity checking.
 #It'll compare the length in seconds of video before and after, so there's no chance of losing material because of a corrupted input file causing the encoder to crash.
 #Added bonus: If it finds an SRT file with the same name, it'll automatically include that too! Can't set the language tag though.
@@ -233,6 +250,11 @@ if($?){$im_identify='identify'};
 if($?){$im_convert='convert'};
 my $sha256sum='sha256sum';
 
+`which $sha256sum`;
+if($?){
+  my $sha256sum='openssl dgst -sha256';
+}
+
 `which leanify`;
 if($?){
   print("leanify not found. This is not a serious problem: Minuimus does not require leanify, but if present, it will be used to augment minuimus's own methods. Minuimus together with Leanify can achieve better compression than either could achieve alone.\n");
@@ -242,6 +264,16 @@ for (@files) {
   if(-f $_){
     compressfile($_, \%options);
   }
+}
+
+sub depcheck($){
+  my $totest=$_[0];
+  `which $totest`;
+   if(! $?){
+         print("Y $totest\n");
+    return;
+  }
+  print("N $totest\n");
 }
 
 sub compressfile($%) {
@@ -328,10 +360,14 @@ sub compressfile($%) {
     $ext=~s/^.*\.//;
   }
   
-  if (($ext eq 'png' ||
-    $ext eq 'webp') &&
-    $options{'srr'}) {
-    while(SRR_image($file)){};
+  if ($options{'srr'}){
+    if(
+      ($ext eq 'png' && is_animated_png($file)==0) ||
+      ($ext eq 'webp' && is_animated_webp($file)==0) ||
+      $ext eq 'bmp'
+    ){
+      while(SRR_image($file)){};
+    }
   }
 
   if ($ext eq 'png') {
@@ -1201,15 +1237,36 @@ sub compress_pdf() {
   my $tempfile="$tmpfolder/$$-$counter.pdf";
   $counter++;
   my $tempfile2="$tmpfolder/$$-$counter.pdf";
+  my $tempfilemu="$tmpfolder/$$-$counter-mu.pdf";
   $counter++;
-  
   print("  adv_pdf($file) using tempfile $tempfile\n");
+  if(testcommand_nonessential('mutool')){
+    print("    Pre-processing using mutool.\n");
+    system('mutool', 'clean', '-ggg', $file, $tempfilemu);
+    if((-s $tempfilemu >= -s $file) || !pdfcompare($file, $tempfilemu)){
+      print("      Unsuccessful.\n");
+      unlink($tempfilemu);
+    }else{
+      print("      Successful.\n");
+      move($tempfilemu, $file);
+    }
+  }
+
   if(! testcommand_nonessential('minuimus_def_helper')){
     print("    The utility minuimus_def_helper was not found.\n    This program is not required to optimise PDF files, but substantially higher compression will be achieved if it is present.\n");
   }
-#  my $ret=system('qpdf', $file, '--stream-data=compress', '--object-streams=generate', '--decode-level=specialized', '--compression-level=9', '--linearize',$tempfile);
+  if(!$qpdfvers){
+    my $vers=`qpdf --version`;
+    $vers=~ m/version (\d+)/i;
+    $qpdfvers=$1;
+    print("  Detected qpdf version >=$qpdfvers\n");
+  }
+  my @opt_args;
+  if($qpdfvers >= 9){
+    push(@opt_args, '--compression-level=9');
+  }
   my $ret;
-  $ret=system('qpdf', $file, '--stream-data=compress', '--object-streams=disable', '--decode-level=specialized', '--linearize',$tempfile); #Unpacking object streams to allow metadata removal.
+  $ret=system('qpdf', $file, '--stream-data=compress', '--object-streams=disable', '--decode-level=specialized', @opt_args, '--linearize',$tempfile); #Unpacking object streams to allow metadata removal.
   my $pdfhash;
   if(-f $tempfile && $ret){
     print("    qpdf exited non-zero. Checking output integrity.\n");
@@ -1225,8 +1282,57 @@ sub compress_pdf() {
     print("  Failed to pre-process PDF.\n");
     return;
   }
+
+  my $processed_objects=adv_pdf_iterate_objects($tempfile, 0, $discard_meta);
+  if($processed_objects){
+    if(-s $file > 1024*1024){
+      system('qpdf', $tempfile, '--stream-data=preserve', '--object-streams=generate', '--decode-level=none', @opt_args, '--linearize',  $tempfile2);
+    }else{
+      system('qpdf', $tempfile, '--stream-data=preserve', '--object-streams=generate', '--decode-level=none', @opt_args, $tempfile2);
+    }
+    move($tempfile2, $tempfile);
+  }else{
+    system('qpdf', $file, '--stream-data=compress', '--object-streams=generate', '--decode-level=specialized', @opt_args,$tempfile);
+    if(-s $file < -s $tempfile){
+      copy($file, $tempfile);
+    }
+  }
+  unlink($tempfile2);
+  adv_pdf_iterate_objects($tempfile, 1);
+
+  system('qpdf', $tempfile, '--stream-data=preserve', '--object-streams=preserve', '--decode-level=none', @opt_args, $tempfile2);
+  unlink($tempfile);
+  my $was= -s $file;
+  my $done= -s $tempfile2;
+  if(! -f $tempfile2){
+    print("    Optimisation failed: Unable to re-assemble optimised PDF.\n");
+    return;
+  }
+  if($done>=$was){
+    print("    Optimisation failed: No space saving achieved.\n");
+    unlink($tempfile2);
+    return;
+  }
+  printq("    Compression done. Checking compressed PDF integrity.\n");
+  my $test=pdfcompare($file, $tempfile2, $pdfhash);
+  if($test){
+    print("  Advanced PDF processing done: Was $was, finished $done.\n");
+    move($tempfile2, $file)
+  }else{
+    unlink($tempfile2);
+    print("      Comparison failed after advanced PDF processing! Something went wrong that appears to have corrupted the PDF, so the original has not been overwritten.\n");
+  }
+}
+
+
+sub adv_pdf_iterate_objects(){
+  my $filename=$_[0];
+  my $dostreams=$_[1];
+  my $discard_meta=$_[2];
+  my $opti_obj=0;
+  my $opti_str=0;
   my @objects2;
-  for(`qpdf --show-xref "$tempfile"`){
+  for(`qpdf --show-xref "$filename"`){
     if(index($_, 'offset = ')!=-1){
       s/\n//;
       push(@objects2, $_);
@@ -1236,8 +1342,9 @@ sub compress_pdf() {
     print("    Failure reading xref in compress_pdf\n");
     return;
   }
+
   my $fh;
-  open($fh, '+<:raw', $tempfile);
+  open($fh, '+<:raw', $filename);
   binmode($fh);
   my @candidate_streams;
   my $count=0;  
@@ -1283,46 +1390,21 @@ sub compress_pdf() {
         if($dict && ($dict ne $origdict)){ 
           sysseek($fh, $offset, SEEK_SET); #And write the patched dictionary in - for the benefit of later processing.
           syswrite($fh, $dict, length($dict));
+          $opti_obj++;
         }
-        advpdf_obj($fh, $object, $offset, $dict);
+        if($dostreams){
+          $opti_str+=advpdf_obj($fh, $object, $offset, $dict);
+        }
       }
     }
   }
   close($fh);
-
-  if(!$qpdfvers){
-    my $vers=`qpdf --version`;
-    $vers=~ m/version (\d+)/i;
-    $qpdfvers=$1;
-    print("  Detected qpdf version >=$qpdfvers\n");
-  }
-
-  if($qpdfvers>=9){
-    system('qpdf', $tempfile, '--stream-data=preserve', '--object-streams=generate', '--decode-level=none', '--compression-level=9', '--linearize',  $tempfile2);
+  if($dostreams){
+    print("    adv_pdf_iterate_objects() complete. Optimised $opti_obj object headers, $opti_str stream contents.\n");
   }else{
-    system('qpdf', $tempfile, '--stream-data=preserve', '--object-streams=generate', '--decode-level=none', '--linearize',  $tempfile2);
+    print("    adv_pdf_iterate_objects() complete. Optimised $opti_obj object headers.\n");
   }
-  unlink($tempfile);
-  my $was= -s $file;
-  my $done= -s $tempfile2;
-  if(! -f $tempfile2){
-    print("    Optimisation failed: Unable to re-assemble optimised PDF.\n");
-    return;
-  }
-  if($done>=$was){
-    print("    Optimisation failed: No space saving achieved.\n");
-    unlink($tempfile2);
-    return;
-  }
-  printq("    Compression done. Checking compressed PDF integrity.\n");
-  my $test=pdfcompare($file, $tempfile2, $pdfhash);
-  if($test){
-    print("  Advanced PDF processing done: Was $was, finished $done.\n");
-    move($tempfile2, $file)
-  }else{
-    unlink($tempfile2);
-    print("      Comparison failed after advanced PDF processing! Something went wrong that appears to have corrupted the PDF, so the original has not been overwritten.\n");
-  }
+  return($opti_obj + $opti_str);
 }
 
 
@@ -1339,7 +1421,7 @@ sub advpdf_obj(){
   if(index($dict, '/Filter /FlateDecode ')>0){
     $filtertype=1;
     $tempname=$tempname.'.def';
-    if(! -f '/usr/bin/minuimus_def_helper'){return;}
+    if(! -f '/usr/bin/minuimus_def_helper'){return(0);}
     if((index($dict, '/Subtype /Image ')>0) &&
        (index($dict, '/BitsPerComponent 8 ')>0) &&
        (index($dict, '/DecodeParms') == -1) && #Probably as optimised as it's getting.
@@ -1352,82 +1434,66 @@ sub advpdf_obj(){
     $tempname=$tempname.'.jpg';
   }elsif((index($dict, '/Filter /JBIG2Decode ')>0) && (index($dict, 'JBIG2Globals') == -1)){
     if(! (testcommand_nonessential('jbig2dec') && testcommand_nonessential('jbig2'))){
-      return; #jbig2dec you can get off of the repository, but jbig2 is a complicated compile from source.
+      return(0); #jbig2dec you can get off of the repository, but jbig2 is a complicated compile from source.
                  #And in any case, almost all PDFs with JBIG2 already use the same or better encoder, so it's not likely to improve at all.
                  #Use it if it's around, maybe it'll give another percentage point saving at most. But if not, don't even prompt for it to be installed.
     }
     $filtertype=3;
     $tempname=$tempname.'.jbig2';
   }else{
-    return; #Unsupported filter type.
+    return(0); #Unsupported filter type.
   }
   my $streamlen=substr($dict, index($dict, ' /Length ')+9);
   $streamlen=substr($streamlen, 0, index($streamlen, ' '));
-  if($streamlen<=5){return;}
+  if($streamlen<=5){return(0);}
 #  print("Processing object:\n$object\n");
   my $contentsoffset=$offset+length($dict)+1;
   my $contents;
   sysseek($fh, $contentsoffset, SEEK_SET);
   sysread($fh, $contents, $streamlen);
-  my $hash; #It's common for PDFs to contain small objects repeated many times, for some reason. So let's cache a few things.
-  if($streamlen<=10240 && !$isimage){ #But only small things.
-    my $sha = Digest::SHA->new('sha1');
-    $sha->add($contents);
-    $sha->add($filtertype);
-    $hash=$sha->hexdigest;
-#    print(" Trying cache: $hash\n");
-  }
   my $newlen;
-  if($smallobjcache{$hash}){
-    $contents=$smallobjcache{$hash};
-    $newlen=length($contents);
-    #print("  Cache succeeded.\n");
-  }else{
-    my $tempfh;
-    open($tempfh, '>:raw', $tempname)||die;
-    syswrite($tempfh, $contents, $streamlen);
-    close($tempfh);
-    if($filtertype==3){
-      my $temp1="$tmpfolder/tempex-$$-$counter.pbm";
-      $counter++;
-      system('jbig2dec', '-e', '-t', 'pbm', '-o', $temp1 ,$tempname);
-      `jbig2 -p -v "$temp1" 2>/dev/null > "$tempname"`;
-      my $newsize= -s $tempname;
-      if(($newsize == 0 ) || ($newsize >= $streamlen)){
-        unlink($tempname);unlink($temp1);return;
-      }
-    }
-    if($filtertype==2){
-      process_jpeg($tempname, 1, 1);
-    }
-    if($filtertype==1){ #DEFLATE
-      if($isimage && (index($dict, '/ColorSpace /DeviceRGB ')>0) && (index($dict, '/SMask ') == -1) ){ #A DEFLATed image in RGB. Testing if it can be made gray.
-        my $defret=system('minuimus_def_helper', $tempname, 1)>>8;
-        if($defret == 2){
-          $dict=substring_replace($dict, '/ColorSpace /DeviceRGB ', '/ColorSpace /DeviceGray'); #qpdf always allows us a generous extra space we can fill up.
-          print("  Converted an RGB24 image to Y8.\n");
-        }
-      }else{
-        system('minuimus_def_helper', $tempname); #Simple DEFLATE, not an image.
-      }
-    }
-    $newlen = -s $tempname;
-    if(!$newlen || ($newlen >= $streamlen)){
-      unlink($tempname);
-      return;
-    }
-    open($tempfh, '<:raw', $tempname)||die;
-    sysread($tempfh, $contents, $newlen);
-    close($tempfh);
-    unlink($tempname);
-    if($hash){
-      $smallobjcache{$hash}=$contents;
+  my $tempfh;
+  open($tempfh, '>:raw', $tempname)||die;
+  syswrite($tempfh, $contents, $streamlen);
+  close($tempfh);
+  if($filtertype==3){
+    my $temp1="$tmpfolder/tempex-$$-$counter.pbm";
+    $counter++;
+    system('jbig2dec', '-e', '-t', 'pbm', '-o', $temp1 ,$tempname);
+    `jbig2 -p -v "$temp1" 2>/dev/null > "$tempname"`;
+    my $newsize= -s $tempname;
+    if(($newsize == 0 ) || ($newsize >= $streamlen)){
+      unlink($tempname);unlink($temp1);return(0);
     }
   }
+  if($filtertype==2){
+    process_jpeg($tempname, 1, 1);
+  }
+  if($filtertype==1){ #DEFLATE
+    if($isimage && (index($dict, '/ColorSpace /DeviceRGB ')>0) && (index($dict, '/SMask ') == -1) ){ #A DEFLATed image in RGB. Testing if it can be made gray.
+      my $defret=system('minuimus_def_helper', $tempname, 1)>>8;
+      if($defret == 2){
+        $dict=substring_replace($dict, '/ColorSpace /DeviceRGB ', '/ColorSpace /DeviceGray'); #qpdf always allows us a generous extra space we can fill up.
+        print("  Converted an RGB24 image to Y8.\n");
+      }
+    }else{
+      system('minuimus_def_helper', $tempname); #Simple DEFLATE, not an image.
+    }
+  }
+  $newlen = -s $tempname;
+  if(!$newlen || ($newlen >= $streamlen)){
+    unlink($tempname);
+    return(0);
+  }
+  open($tempfh, '<:raw', $tempname)||die;
+  sysread($tempfh, $contents, $newlen);
+  close($tempfh);
+  unlink($tempname);
   
   if($newlen >= $streamlen){
-    return;
-  }     
+    return(0);
+  }
+  #print("Optimised stream:\n$dict\nLen $streamlen -> $newlen\n");
   sysseek($fh, $contentsoffset, SEEK_SET);
   syswrite($fh, $contents, $newlen) || die "write failed";
   syswrite($fh, "endstream\nendobj\n", 17);
@@ -1445,6 +1511,7 @@ sub advpdf_obj(){
   }
   sysseek($fh, $offset, SEEK_SET);
   syswrite($fh, $dict, length($dict));
+  return(1); #Indicates a successful reduction.
 }
 
 sub substring_replace(){
@@ -2552,6 +2619,27 @@ sub SRR_image(){
     unlink($tmp_d);
     return(0);
   }
+}
+
+sub is_animated_webp(){
+  #0: No
+  #1: Yes. Tends to return yes every time on imagemagick-created webp, because they are sloppy!
+  #-1:Error.
+  my $fileh;
+  my $a; my $b; my $c;
+  open($fileh, '<:raw', $_[0])||return(-1);
+  read($fileh, $a, 4);
+  seek($fileh, 12, SEEK_SET);
+  read($fileh, $b, 4);
+  read($fileh, $c, 1);
+  close($fileh);
+  ($a eq 'RIFF') || return(-1);
+  ($b eq 'VP8 ') && return(0);
+  ($b eq 'VP8L') && return(0);
+  ($b eq 'VP8X') || return(-1);
+  $c=ord($c) & 2;
+  $c && return(1);
+  return(0);
 }
 
 sub get_img_size(){
