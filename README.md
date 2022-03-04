@@ -142,10 +142,11 @@ Optional dependencies will be used if installed, and skipped if not
 - `minuimus_def_helper` - additional PDF processing (Optional part of Minuimus install)
 - `minuimus_swf_helper` - additional SWF processing (Optional part of Minuimus install)
 - `minuimus_woff_helper` - additional WOFF processing (Optional part of Minuimus install)
+- `mutool` - additional PDF processing
 - `pdfsizeopt` - additional PDF processing ([Source](https://github.com/pts/pdfsizeopt)) With deps:
-    - `imgdataopt` - addtional PDF processing
-    - `png22pnm` - required for `pdfsizeopt`
-    - `sam2p` - required for `pdfsizeopt`
+    - `imgdataopt` - addtional PDF processing ([Source](https://github.com/pts/imgdataopt))
+    - `png22pnm` - required for `pdfsizeopt` ([Source](https://github.com/pts/tif22pnm))
+    - `sam2p` - required for `pdfsizeopt` ([Source](https://github.com/pts/sam2p))
 - `pngout` - additional PNG processing ([Source](https://jonof.id.au/kenutils.html), also available as part of pdfsizeopt install)
 
 ### Changes
@@ -159,9 +160,9 @@ List of changes this repo makes—excluding the dockerfile, which was created fr
 From top to bottom:
 - Adds release dates to version history (starting at v3.2.1)
 - Removes cruft from message when running minuimus.pl with no arguments
-- Alphabetizes command line options available via `--help`
-- Edits options text for clarity and brevity
+- ~~Alphabetizes and adds command line options available via `--help`~~ [merged]
+- ~~Edits options text for clarity and brevity~~ [merged]
 - Adds `--version` option to display version/date/credits
-- Adds `check-deps` option to check availablity of all required and optional dependencies
+- ~~Adds `check-deps` option to check availablity of all required and optional dependencies~~ [merged]
 - Moves check for `leanify` to subroutine to eliminate the warning message appearing when irrelevant
-- Adds subroutine `depcheck` utilized by `--check-deps` option
+- ~~Adds subroutine `depcheck` utilized by `--check-deps` option~~ [merged]
