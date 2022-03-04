@@ -131,6 +131,13 @@
 #      Pdfsizeopt location detection. Pdfsizeopt is fiddly - there's no standard installation folder, it depends on distro.
 #      Will now use imgdataopt option for pdfsizeopt, if it's installed. Another optional dependency: You don't need it, may improve compression.
 #      pdfsizeopt output >1MiB will now be linearized by qpdf.
+# 3.5 (2022-03-03)
+#      SRR is now animation-safe (The main reason for the hasty update)
+#      sha256sum no longer required: Will use openssl as an alternative.
+#      Rewrote part of the PDF code, again. Quite substantially. It had gotten too unwieldy to work with. Now it can process object streams right.
+#      Added a PDF pre-processing step with mutool, if available. It does object deduplication.
+#      Removed the PDF object cache. It was more trouble than it's worth.
+#      Incorporated the dependency checking code contributed by Wdavery.
 
 use File::Spec;
 use File::Copy;
@@ -210,7 +217,7 @@ if($options{'help'}){
   exit(0);
 }
 if($options{'version'}){
-  print("Minuimus.pl - version 3.3 (2022-01-26)\n",
+  print("Minuimus.pl - version 3.5 (2022-03-03)\n",
         "Written by Codebird\n",
         "Additional changes by Wdavery\n");
   exit(0);
@@ -245,6 +252,10 @@ if($?){$im_identify='identify'};
 if($?){$im_convert='convert'};
 my $sha256sum='sha256sum';
 
+`which $sha256sum`;
+if($?){
+  my $sha256sum='openssl dgst -sha256';
+}
 for (@files) {
   if(-f $_){
     compressfile($_, \%options);
@@ -345,10 +356,14 @@ sub compressfile($%) {
     $ext=~s/^.*\.//;
   }
     
-  if (($ext eq 'png' ||
-    $ext eq 'webp') &&
-    $options{'srr'}) {
-    while(SRR_image($file)){};
+  if ($options{'srr'}){
+    if(
+      ($ext eq 'png' && is_animated_png($file)==0) ||
+      ($ext eq 'webp' && is_animated_webp($file)==0) ||
+      $ext eq 'bmp'
+    ){
+      while(SRR_image($file)){};
+    }
   }
 
   if ($ext eq 'png') {
@@ -1218,15 +1233,36 @@ sub compress_pdf() {
   my $tempfile="$tmpfolder/$$-$counter.pdf";
   $counter++;
   my $tempfile2="$tmpfolder/$$-$counter.pdf";
+  my $tempfilemu="$tmpfolder/$$-$counter-mu.pdf";
   $counter++;
-  
   print("  adv_pdf($file) using tempfile $tempfile\n");
+  if(testcommand_nonessential('mutool')){
+    print("    Pre-processing using mutool.\n");
+    system('mutool', 'clean', '-ggg', $file, $tempfilemu);
+    if((-s $tempfilemu >= -s $file) || !pdfcompare($file, $tempfilemu)){
+      print("      Unsuccessful.\n");
+      unlink($tempfilemu);
+    }else{
+      print("      Successful.\n");
+      move($tempfilemu, $file);
+    }
+  }
+
   if(! testcommand_nonessential('minuimus_def_helper')){
     print("    The utility minuimus_def_helper was not found.\n    This program is not required to optimise PDF files, but substantially higher compression will be achieved if it is present.\n");
   }
-#  my $ret=system('qpdf', $file, '--stream-data=compress', '--object-streams=generate', '--decode-level=specialized', '--compression-level=9', '--linearize',$tempfile);
+  if(!$qpdfvers){
+    my $vers=`qpdf --version`;
+    $vers=~ m/version (\d+)/i;
+    $qpdfvers=$1;
+    print("  Detected qpdf version >=$qpdfvers\n");
+  }
+  my @opt_args;
+  if($qpdfvers >= 9){
+    push(@opt_args, '--compression-level=9');
+  }
   my $ret;
-  $ret=system('qpdf', $file, '--stream-data=compress', '--object-streams=disable', '--decode-level=specialized', '--linearize',$tempfile); #Unpacking object streams to allow metadata removal.
+  $ret=system('qpdf', $file, '--stream-data=compress', '--object-streams=disable', '--decode-level=specialized', @opt_args, '--linearize',$tempfile); #Unpacking object streams to allow metadata removal.
   my $pdfhash;
   if(-f $tempfile && $ret){
     print("    qpdf exited non-zero. Checking output integrity.\n");
@@ -1242,8 +1278,57 @@ sub compress_pdf() {
     print("  Failed to pre-process PDF.\n");
     return;
   }
+
+  my $processed_objects=adv_pdf_iterate_objects($tempfile, 0, $discard_meta);
+  if($processed_objects){
+    if(-s $file > 1024*1024){
+      system('qpdf', $tempfile, '--stream-data=preserve', '--object-streams=generate', '--decode-level=none', @opt_args, '--linearize',  $tempfile2);
+    }else{
+      system('qpdf', $tempfile, '--stream-data=preserve', '--object-streams=generate', '--decode-level=none', @opt_args, $tempfile2);
+    }
+    move($tempfile2, $tempfile);
+  }else{
+    system('qpdf', $file, '--stream-data=compress', '--object-streams=generate', '--decode-level=specialized', @opt_args,$tempfile);
+    if(-s $file < -s $tempfile){
+      copy($file, $tempfile);
+    }
+  }
+  unlink($tempfile2);
+  adv_pdf_iterate_objects($tempfile, 1);
+
+  system('qpdf', $tempfile, '--stream-data=preserve', '--object-streams=preserve', '--decode-level=none', @opt_args, $tempfile2);
+  unlink($tempfile);
+  my $was= -s $file;
+  my $done= -s $tempfile2;
+  if(! -f $tempfile2){
+    print("    Optimisation failed: Unable to re-assemble optimised PDF.\n");
+    return;
+  }
+  if($done>=$was){
+    print("    Optimisation failed: No space saving achieved.\n");
+    unlink($tempfile2);
+    return;
+  }
+  printq("    Compression done. Checking compressed PDF integrity.\n");
+  my $test=pdfcompare($file, $tempfile2, $pdfhash);
+  if($test){
+    print("  Advanced PDF processing done: Was $was, finished $done.\n");
+    move($tempfile2, $file)
+  }else{
+    unlink($tempfile2);
+    print("      Comparison failed after advanced PDF processing! Something went wrong that appears to have corrupted the PDF, so the original has not been overwritten.\n");
+  }
+}
+
+
+sub adv_pdf_iterate_objects(){
+  my $filename=$_[0];
+  my $dostreams=$_[1];
+  my $discard_meta=$_[2];
+  my $opti_obj=0;
+  my $opti_str=0;
   my @objects2;
-  for(`qpdf --show-xref "$tempfile"`){
+  for(`qpdf --show-xref "$filename"`){
     if(index($_, 'offset = ')!=-1){
       s/\n//;
       push(@objects2, $_);
@@ -1253,8 +1338,9 @@ sub compress_pdf() {
     print("    Failure reading xref in compress_pdf\n");
     return;
   }
+
   my $fh;
-  open($fh, '+<:raw', $tempfile);
+  open($fh, '+<:raw', $filename);
   binmode($fh);
   my @candidate_streams;
   my $count=0;  
@@ -1300,46 +1386,21 @@ sub compress_pdf() {
         if($dict && ($dict ne $origdict)){ 
           sysseek($fh, $offset, SEEK_SET); #And write the patched dictionary in - for the benefit of later processing.
           syswrite($fh, $dict, length($dict));
+           $opti_obj++;
         }
-        advpdf_obj($fh, $object, $offset, $dict);
+        if($dostreams){
+          $opti_str+=advpdf_obj($fh, $object, $offset, $dict);
+        }
+        }
       }
     }
-  }
   close($fh);
-  
-  if(!$qpdfvers){
-    my $vers=`qpdf --version`;
-    $vers=~ m/version (\d+)/i;
-    $qpdfvers=$1;
-    print("  Detected qpdf version >=$qpdfvers\n");
-  }
-
-  if($qpdfvers>=9){
-    system('qpdf', $tempfile, '--stream-data=preserve', '--object-streams=generate', '--decode-level=none', '--compression-level=9', '--linearize',  $tempfile2);
+if($dostreams){
+    print("    adv_pdf_iterate_objects() complete. Optimised $opti_obj object headers, $opti_str stream contents.\n");
   }else{
-    system('qpdf', $tempfile, '--stream-data=preserve', '--object-streams=generate', '--decode-level=none', '--linearize',  $tempfile2);
+    print("    adv_pdf_iterate_objects() complete. Optimised $opti_obj object headers.\n");
   }
-  unlink($tempfile);
-  my $was= -s $file;
-  my $done= -s $tempfile2;
-  if(! -f $tempfile2){
-    print("    Optimisation failed: Unable to re-assemble optimised PDF.\n");
-    return;
-  }
-  if($done>=$was){
-    print("    Optimisation failed: No space saving achieved.\n");
-    unlink($tempfile2);
-    return;
-  }
-  printq("    Compression done. Checking compressed PDF integrity.\n");
-  my $test=pdfcompare($file, $tempfile2, $pdfhash);
-  if($test){
-    print("  Advanced PDF processing done: Was $was, finished $done.\n");
-    move($tempfile2, $file)
-  }else{
-    unlink($tempfile2);
-    print("      Comparison failed after advanced PDF processing! Something went wrong that appears to have corrupted the PDF, so the original has not been overwritten.\n");
-  }
+  return($opti_obj + $opti_str);
 }
 
 
@@ -1356,7 +1417,7 @@ sub advpdf_obj(){
   if(index($dict, '/Filter /FlateDecode ')>0){
     $filtertype=1;
     $tempname=$tempname.'.def';
-    if(! -f '/usr/bin/minuimus_def_helper'){return;}
+    if(! -f '/usr/bin/minuimus_def_helper'){return(0);}
     if((index($dict, '/Subtype /Image ')>0) &&
        (index($dict, '/BitsPerComponent 8 ')>0) &&
        (index($dict, '/DecodeParms') == -1) && #Probably as optimised as it's getting.
@@ -1369,82 +1430,66 @@ sub advpdf_obj(){
     $tempname=$tempname.'.jpg';
   }elsif((index($dict, '/Filter /JBIG2Decode ')>0) && (index($dict, 'JBIG2Globals') == -1)){
     if(! (testcommand_nonessential('jbig2dec') && testcommand_nonessential('jbig2'))){
-      return; #jbig2dec you can get off of the repository, but jbig2 is a complicated compile from source.
+      return(0); #jbig2dec you can get off of the repository, but jbig2 is a complicated compile from source.
                  #And in any case, almost all PDFs with JBIG2 already use the same or better encoder, so it's not likely to improve at all.
                  #Use it if it's around, maybe it'll give another percentage point saving at most. But if not, don't even prompt for it to be installed.
     }
     $filtertype=3;
     $tempname=$tempname.'.jbig2';
   }else{
-    return; #Unsupported filter type.
+    return(0); #Unsupported filter type.
   }
   my $streamlen=substr($dict, index($dict, ' /Length ')+9);
   $streamlen=substr($streamlen, 0, index($streamlen, ' '));
-  if($streamlen<=5){return;}
+  if($streamlen<=5){return(0);}
 #  print("Processing object:\n$object\n");
   my $contentsoffset=$offset+length($dict)+1;
   my $contents;
   sysseek($fh, $contentsoffset, SEEK_SET);
   sysread($fh, $contents, $streamlen);
-  my $hash; #It's common for PDFs to contain small objects repeated many times, for some reason. So let's cache a few things.
-  if($streamlen<=10240 && !$isimage){ #But only small things.
-    my $sha = Digest::SHA->new('sha1');
-    $sha->add($contents);
-    $sha->add($filtertype);
-    $hash=$sha->hexdigest;
-#    print(" Trying cache: $hash\n");
-  }
   my $newlen;
-  if($smallobjcache{$hash}){
-    $contents=$smallobjcache{$hash};
-    $newlen=length($contents);
-    #print("  Cache succeeded.\n");
-  }else{
-    my $tempfh;
-    open($tempfh, '>:raw', $tempname)||die;
-    syswrite($tempfh, $contents, $streamlen);
-    close($tempfh);
-    if($filtertype==3){
-      my $temp1="$tmpfolder/tempex-$$-$counter.pbm";
-      $counter++;
-      system('jbig2dec', '-e', '-t', 'pbm', '-o', $temp1 ,$tempname);
-      `jbig2 -p -v "$temp1" 2>/dev/null > "$tempname"`;
-      my $newsize= -s $tempname;
-      if(($newsize == 0 ) || ($newsize >= $streamlen)){
-        unlink($tempname);unlink($temp1);return;
-      }
-    }
-    if($filtertype==2){
-      process_jpeg($tempname, 1, 1);
-    }
-    if($filtertype==1){ #DEFLATE
-      if($isimage && (index($dict, '/ColorSpace /DeviceRGB ')>0) && (index($dict, '/SMask ') == -1) ){ #A DEFLATed image in RGB. Testing if it can be made gray.
-        my $defret=system('minuimus_def_helper', $tempname, 1)>>8;
-        if($defret == 2){
-          $dict=substring_replace($dict, '/ColorSpace /DeviceRGB ', '/ColorSpace /DeviceGray'); #qpdf always allows us a generous extra space we can fill up.
-          print("  Converted an RGB24 image to Y8.\n");
-        }
-      }else{
-        system('minuimus_def_helper', $tempname); #Simple DEFLATE, not an image.
-      }
-    }
-    $newlen = -s $tempname;
-    if(!$newlen || ($newlen >= $streamlen)){
-      unlink($tempname);
-      return;
-    }
-    open($tempfh, '<:raw', $tempname)||die;
-    sysread($tempfh, $contents, $newlen);
-    close($tempfh);
-    unlink($tempname);
-    if($hash){
-      $smallobjcache{$hash}=$contents;
+  my $tempfh;
+  open($tempfh, '>:raw', $tempname)||die;
+  syswrite($tempfh, $contents, $streamlen);
+  close($tempfh);
+  if($filtertype==3){
+    my $temp1="$tmpfolder/tempex-$$-$counter.pbm";
+    $counter++;
+    system('jbig2dec', '-e', '-t', 'pbm', '-o', $temp1 ,$tempname);
+    `jbig2 -p -v "$temp1" 2>/dev/null > "$tempname"`;
+    my $newsize= -s $tempname;
+    if(($newsize == 0 ) || ($newsize >= $streamlen)){
+      unlink($tempname);unlink($temp1);return(0);
     }
   }
-  
+  if($filtertype==2){
+    process_jpeg($tempname, 1, 1);
+  }
+  if($filtertype==1){ #DEFLATE
+    if($isimage && (index($dict, '/ColorSpace /DeviceRGB ')>0) && (index($dict, '/SMask ') == -1) ){ #A DEFLATed image in RGB. Testing if it can be made gray.
+      my $defret=system('minuimus_def_helper', $tempname, 1)>>8;
+      if($defret == 2){
+        $dict=substring_replace($dict, '/ColorSpace /DeviceRGB ', '/ColorSpace /DeviceGray'); #qpdf always allows us a generous extra space we can fill up.
+        print("  Converted an RGB24 image to Y8.\n");
+      }
+    }else{
+      system('minuimus_def_helper', $tempname); #Simple DEFLATE, not an image.
+    }
+  }
+  $newlen = -s $tempname;
+  if(!$newlen || ($newlen >= $streamlen)){
+    unlink($tempname);
+    return(0);
+  }
+  open($tempfh, '<:raw', $tempname)||die;
+  sysread($tempfh, $contents, $newlen);
+  close($tempfh);
+  unlink($tempname);
+      
   if($newlen >= $streamlen){
-    return;
+    return(0);
   }     
+    #print("Optimised stream:\n$dict\nLen $streamlen -> $newlen\n");
   sysseek($fh, $contentsoffset, SEEK_SET);
   syswrite($fh, $contents, $newlen) || die "write failed";
   syswrite($fh, "endstream\nendobj\n", 17);
@@ -1462,6 +1507,7 @@ sub advpdf_obj(){
   }
   sysseek($fh, $offset, SEEK_SET);
   syswrite($fh, $dict, length($dict));
+    return(1); #Indicates a successful reduction.
 }
 
 sub substring_replace(){
@@ -2572,6 +2618,27 @@ sub SRR_image(){
     unlink($tmp_d);
     return(0);
   }
+}
+
+sub is_animated_webp(){
+  #0: No
+  #1: Yes. Tends to return yes every time on imagemagick-created webp, because they are sloppy!
+  #-1:Error.
+  my $fileh;
+  my $a; my $b; my $c;
+  open($fileh, '<:raw', $_[0])||return(-1);
+  read($fileh, $a, 4);
+  seek($fileh, 12, SEEK_SET);
+  read($fileh, $b, 4);
+  read($fileh, $c, 1);
+  close($fileh);
+  ($a eq 'RIFF') || return(-1);
+  ($b eq 'VP8 ') && return(0);
+  ($b eq 'VP8L') && return(0);
+  ($b eq 'VP8X') || return(-1);
+  $c=ord($c) & 2;
+  $c && return(1);
+  return(0);
 }
 
 sub get_img_size(){
