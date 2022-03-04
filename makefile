@@ -20,7 +20,7 @@ install: all
 	cp minuimus_swf_helper /usr/bin/minuimus_swf_helper
 
 deps: 
-	apt-get install qpdf jpegoptim optipng advancecompgif2apng webp unrar zip gifsicle p7zip-full poppler-utils libjpeg-progs imagemagick-6.q16 mupdf-tools
+	apt-get install qpdf jpegoptim optipng advancecomp gif2apng webp unrar zip gifsicle p7zip-full poppler-utils libjpeg-progs imagemagick-6.q16 mupdf-tools
 
 zip:	minuimus.pl minuimus_def_helper.c makefile README  minuimus_woff_helper.c cab_analyze.c minuimus_swf_helper.c
 	zip -r9XD minuimus.zip minuimus.pl minuimus_def_helper.c makefile README zopfli minuimus_woff_helper.c cab_analyze.c minuimus_swf_helper.c
