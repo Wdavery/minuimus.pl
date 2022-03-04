@@ -120,7 +120,7 @@
 #      Re-fixed the bug with multiple audio: It wasn't fixed after all. Now it is.
 #      advdef z4k changed to z4
 #      Fixed a number of not-at-all-serious warnings visible with 'use warnings.'
-# 3.4  (2022-02-28)
+# 3.4 (2022-02-28)
 #      Fixed a bug which caused very large (>=16384 pixels longest dimension) JPEG files to be incorrectly identified as false grey. Fortunatly the conversion rarely actually happened.
 #      PDF now processes files without object streams. This results in slightly worse compression of objects (no more zopfli on object streams) but exposes all the metadata for deletion.
 #      The gains outweigh the losses.
