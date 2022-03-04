@@ -224,8 +224,8 @@ if($options{'version'}){
 }
 
 if($options{'check-deps'}){
-    my @deps = ("7z","advdef","advpng","advzip","brotli","bzip2","cab_analyze","cabextract","cwebp","convert-im6","ffmpeg",
-            "ffprobe","file","flac","flexigif","gif2apng","gifsicle","gzip","identify-im6","imgdataopt","jbig2","jbig2dec","jpegoptim",
+    my @deps = ("7z","advdef","advpng","advzip","brotli","bzip2","cab_analyze","cabextract","cwebp","$im_convert","ffmpeg",
+            "ffprobe","file","flac","flexigif","gif2apng","gifsicle","gzip","$im_identify","imgdataopt","jbig2","jbig2dec","jpegoptim",
             "jpegtran","knusperli","leanify","lzip","minuimus_def_helper","minuimus_swf_helper","minuimus_woff_helper","mutool",
             "optipng","$pdfsizeoptpath","pdftoppm","pngout","png22pnm","qpdf","rzip","sam2p","unrar","zip","zpaq");
     foreach (@deps)
