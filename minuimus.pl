@@ -134,6 +134,13 @@
 #      Added a PDF pre-processing step with mutool, if available. It does object deduplication.
 #      Removed the PDF object cache. It was more trouble than it's worth.
 #      Incorporated the dependency checking code contributed by Wdavery.
+#3.5.1 Fixed scoping mistake on sha256sum. Script now runs unmodified on OSX.
+#      Removed a line from the help.
+#      Changed mutool option from -ggg to -gggg.
+#      Removed leanify notification message.
+#      Missing optional dependencies will now generate exactly one notification.
+#      Added version display.
+#      updated makefile
 
 
 use File::Spec;
@@ -148,6 +155,7 @@ use strict;
 use Cwd;
 my %empty;
 my $counter=int(rand(10000));
+my %nonessential_failed;
 my $tmpfolder='/tmp'; #Temp folder. No trailing /.
 my $qpdfvers=0;
 my $pdfsizeopt;
@@ -195,7 +203,6 @@ $options{'recur-depth'}=1;
 
 if($options{'help'}){
   print("Minuimus, by default, performs only transparent conversions: It will never convert one type of file unless you explicitly enable this function.\n",
-        "          These options enable file format conversion and other non-transparent features, which will alter the format of your files in order to make them more compact:\n\n",
         "--help          Displays this help page\n",
         "--version       Displays current version, release date and credits\n\n",
         "The following options enable file format conversion and other non-transparent features, which will alter the format of your files in order further reduce filesize.\n\n",
@@ -221,10 +228,31 @@ if($options{'help'}){
   exit(0);
 }
 
+if($options{'version'}){
+  print("Minuimus.pl - version 3.5.1 (2022 March)\n",
+        "Written by Codebird\n",
+        "Additional changes by Wdavery\n");
+  exit(0);
+}
+
+#Imagemagick commands differ by distro. This should pick them up.
+my $im_identify='identify-im6';
+my $im_convert='convert-im6';
+`which $im_identify`;
+if($?){$im_identify='identify'};
+`which $im_convert`;
+if($?){$im_convert='convert'};
+my $sha256sum='sha256sum';
+
+`which $sha256sum`;
+if($?){
+  $sha256sum='openssl dgst -sha256';
+}
+
 if($options{'check-deps'}){
-    my @deps = ("7z","advdef","advpng","advzip","brotli","bzip2","cab_analyze","cabextract","cwebp","convert-im6","ffmpeg",
-            "ffprobe","file","flac","flexigif","gif2apng","gifsicle","gzip","identify-im6","jbig2","jbig2dec","jpegoptim",
-            "jpegtran","knusperli","leanify","lzip","minuimus_def_helper","minuimus_swf_helper","minuimus_woff_helper",
+    my @deps = ("7z","advdef","advpng","advzip","brotli","bzip2","cab_analyze","cabextract","cwebp","$im_convert","ffmpeg",
+            "ffprobe","file","flac","flexiGIF","gif2apng","gifsicle","gzip","$im_identify","imgdataopt","jbig2","jbig2dec","jpegoptim",
+            "jpegtran","knusperli","leanify","lzip","minuimus_def_helper","minuimus_swf_helper","minuimus_woff_helper","mutool",
             "optipng","$pdfsizeoptpath","pdftoppm","pngout","png22pnm","qpdf","rzip","sam2p","unrar","zip","zpaq");
     foreach (@deps)
     {
@@ -241,24 +269,6 @@ if($options{'check-deps'}){
 #Something to watch out for though: The ffmpeg in distro repositories tends to be /seriously/ out of date regarding libaom-av1, and you *need* a recent version. v1.0.0 sucks. Unusably slow.
 #At time of writing, ubuntu 20.04's apt-get only gives you libaom-av1 1.0.0 - the latest has passed 2.0.0 now! So you're probably going to have to compile ffmpeg yourself.
 
-#Imagemagick commands differ by distro. This should pick them up.
-my $im_identify='identify-im6';
-my $im_convert='convert-im6';
-`which $im_identify`;
-if($?){$im_identify='identify'};
-`which $im_convert`;
-if($?){$im_convert='convert'};
-my $sha256sum='sha256sum';
-
-`which $sha256sum`;
-if($?){
-  my $sha256sum='openssl dgst -sha256';
-}
-
-`which leanify`;
-if($?){
-  print("leanify not found. This is not a serious problem: Minuimus does not require leanify, but if present, it will be used to augment minuimus's own methods. Minuimus together with Leanify can achieve better compression than either could achieve alone.\n");
-}
 
 for (@files) {
   if(-f $_){
@@ -1161,8 +1171,7 @@ sub compress_gif(){
 
   $befores = -s $file;
 
-  `which flexiGIF`;
-  if ($? || $befores>102400) {
+  if (!testcommand_nonessential('flexiGIF') || $befores>102400) {
     # FlexiGIF is a optional thing, mostly because it's not in the ubuntu
     # apt-get repository.
     return;
@@ -1242,7 +1251,7 @@ sub compress_pdf() {
   print("  adv_pdf($file) using tempfile $tempfile\n");
   if(testcommand_nonessential('mutool')){
     print("    Pre-processing using mutool.\n");
-    system('mutool', 'clean', '-ggg', $file, $tempfilemu);
+    system('mutool', 'clean', '-gggg', $file, $tempfilemu);
     if((-s $tempfilemu >= -s $file) || !pdfcompare($file, $tempfilemu)){
       print("      Unsuccessful.\n");
       unlink($tempfilemu);
@@ -1823,13 +1832,6 @@ sub testcommand($){
   print("Minuimus requires $totest. Install dependency or 'make deps' and retry.\n");
   exit(1);
 }
-
-sub testcommand_nonessential($){
-  my $totest=$_[0];
-  `which $totest`;
-  return(! $?);
-}
-
 
 sub omni_whichisbigger(){
   my $alpha=$_[0];
@@ -2437,8 +2439,9 @@ sub fix_proper_ext($){
 sub leanify($){
   my $file=$_[0];
   my $discard_meta=$_[1];
-  `which leanify`;
-  $? && return; #Leanify is not installed.
+  if(!testcommand_nonessential('leanify')){
+    return;
+  }
   #Leanify is powerful, but a bit more intrusive than minuimus's defaults.
   #There's a reason minuimus's more aggressive features all need to be enabled by command line option.
   #So leanify is to be invoked upon certain formats only.
@@ -2468,6 +2471,20 @@ sub leanify($){
   unlink($tempfile);
   if($presize>$postsize){
     printq("  Leanify achieved an additional saving ($presize->$postsize)\n");
+  }
+}
+
+sub testcommand_nonessential($){
+  my $totest=$_[0];
+  $nonessential_failed{$totest} && return(0);
+  `which $totest`;
+  if($?){
+    print("Program $totest requsted but not available. This is an optional dependency. It is not required for minuimus, but functionality is reduced without it.\n");
+    print("Installing $totest may enable more effective compression.\n");
+    $nonessential_failed{$totest} = 1;
+    return(0);
+  }else{
+    return(1);
   }
 }
 
@@ -2626,7 +2643,7 @@ sub is_animated_webp(){
   #1: Yes. Tends to return yes every time on imagemagick-created webp, because they are sloppy!
   #-1:Error.
   my $fileh;
-  my $a; my $b; my $c;
+  my $a;my $b;my $c;
   open($fileh, '<:raw', $_[0])||return(-1);
   read($fileh, $a, 4);
   seek($fileh, 12, SEEK_SET);
