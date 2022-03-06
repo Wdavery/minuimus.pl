@@ -138,7 +138,7 @@
 #      Added a PDF pre-processing step with mutool, if available. It does object deduplication.
 #      Removed the PDF object cache. It was more trouble than it's worth.
 #      Incorporated the dependency checking code contributed by Wdavery.
-# 3.5.1 (2.22-03-05)
+# 3.5.1 (2022-03-05)
 #      Fixed scoping mistake on sha256sum. Script now runs unmodified on OSX.
 #      Removed a line from the help.
 #      Changed mutool option from -ggg to -gggg.
