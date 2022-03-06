@@ -2477,7 +2477,7 @@ sub testcommand_nonessential($){
   $nonessential_failed{$totest} && return(0);
   `which $totest`;
   if($?){
-    print("Program $totest requsted but not available. This is an optional dependency. It is not required for minuimus, but functionality is reduced without it.\n");
+    print("Program $totest requested but not available. This is an optional dependency. It is not required for minuimus, but functionality is reduced without it.\n");
     print("Installing $totest may enable more effective compression.\n");
     $nonessential_failed{$totest} = 1;
     return(0);
