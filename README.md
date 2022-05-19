@@ -162,7 +162,7 @@ From top to bottom:
 - Removes cruft from message when running minuimus.pl with no arguments
 - ~~Alphabetizes and adds command line options available via `--help`~~ [merged]
 - ~~Edits options text for clarity and brevity~~ [merged]
-- Adds `--version` option to display version/date/credits
+- ~~Adds `--version` option to display version/date/credits~~ [merged]
 - ~~Adds `check-deps` option to check availablity of all required and optional dependencies~~ [merged]
 - Moves check for `leanify` to subroutine to eliminate the warning message appearing when irrelevant
 - ~~Adds subroutine `depcheck` utilized by `--check-deps` option~~ [merged]
