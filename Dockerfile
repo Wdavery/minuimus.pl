@@ -30,6 +30,7 @@ echo "**** install required and optional packages ****" && \
  jpegoptim \
  libjpeg-progs \
  lzip \
+ mupdf-tools \
  optipng \
  p7zip-full \
  parallel \
@@ -94,6 +95,16 @@ cd knusperli-master && \
 CC=gcc bazel build :knusperli && \
 mv bazel-bin/knusperli /usr/bin/knusperli && \
 rm -r /tmp/knusperli-src && \
+echo "************************************************************" && \
+echo "**** compile imgdataopt ****" && \
+mkdir -p /tmp/imgdataopt && \
+cd /tmp/imgdataopt && \
+wget -O imgdataopt.zip https://github.com/pts/imgdataopt/archive/refs/heads/master.zip && \
+unzip imgdataopt.zip && \
+cd imgdataopt-master && \
+make && \
+mv imgdataopt /usr/bin/imgdataopt && \
+rm -r /tmp/imgdataopt && \
 echo "************************************************************" && \
 echo "**** Cleanup ****" && \
 apt-get purge -qy \
