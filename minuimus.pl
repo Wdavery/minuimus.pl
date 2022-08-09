@@ -1169,7 +1169,7 @@ sub compress_gif(){
 
   $befores = -s $file;
 
-  if (!testcommand_nonessential('flexiGIF') || $befores>102400) {
+  if (!testcommand_nonessential('flexigif') || $befores>102400) {
     # FlexiGIF is a optional thing, mostly because it's not in the ubuntu
     # apt-get repository.
     return;
@@ -1177,7 +1177,7 @@ sub compress_gif(){
 
   # It's also incredibly slow - so painfully slow that it's best skipped for
   # large files, otherwise it could take all day - and that's not hyperbole.
-  system('flexiGIF', '-p', $file, $tempfile);
+  system('flexigif', '-p', $file, $tempfile);
 
   $afters = -s $tempfile;
 
