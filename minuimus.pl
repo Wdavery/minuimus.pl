@@ -278,10 +278,10 @@ sub depcheck($){
   my $totest=$_[0];
   `which $totest`;
    if(! $?){
-         print("✅ $totest\n");
+         print("✅/Y $totest\n");
     return;
   }
-  print("❌ $totest\n");
+  print("❌/N $totest\n");
 }
 
 sub compressfile($%) {
