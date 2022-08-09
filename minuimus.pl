@@ -380,7 +380,7 @@ sub compressfile($%) {
 
   if ($ext eq 'png') {
     compress_png($file);
-    $options{'discard-meta'} && leanify($file);
+    $options{'discard-meta'} && print("Processing with leanify") && leanify($file) && print(": Success\n");
     if( $options{'png-webp'} ) {
       $file=png2webp($file); #If successful, returns new name. Otherwise returns old name.
       $ext=lc($file);
@@ -1061,16 +1061,22 @@ sub compress_png($) {
     return;
   }
 
-  print "Compressing $file $anim ...\n";
-
+  print("Processing with optipng");
   system('optipng', '-quiet','-o6', '-nc', '-nb', $file);
+  print(": Done\n");
 
   if ($anim) {
+    print("Processing with advdef");
     system('advdef', '-z4', '-q', $file);
+    print(": Done\n");
   } else {
+    print("Processing with advpng");
     system('advpng', '-z4', '-q', $file);
+    print(": Done\n");
     `which pngout`;
-    $? || system('pngout', $file);
+    print("Processing with pngout");
+    $? || system('pngout', '-q', $file);
+    print(": Done\n");
   }
 }
 
@@ -1248,13 +1254,13 @@ sub compress_pdf() {
   $counter++;
   print("  adv_pdf($file) using tempfile $tempfile\n");
   if(testcommand_nonessential('mutool')){
-    print("    Pre-processing using mutool.\n");
+    print("  Pre-processing with mutool");
     system('mutool', 'clean', '-gggg', $file, $tempfilemu);
     if((-s $tempfilemu >= -s $file) || !pdfcompare($file, $tempfilemu)){
-      print("      Unsuccessful.\n");
+      print(": Done (Failed)\n");
       unlink($tempfilemu);
     }else{
-      print("      Successful.\n");
+      print(": Done\n");
       move($tempfilemu, $file);
     }
   }
@@ -1266,7 +1272,7 @@ sub compress_pdf() {
     my $vers=`qpdf --version`;
     $vers=~ m/version (\d+)/i;
     $qpdfvers=$1;
-    print("  Detected qpdf version >=$qpdfvers\n");
+    printq("      Detected qpdf version >=$qpdfvers\n");
   }
   my @opt_args;
   if($qpdfvers >= 9){
@@ -1323,7 +1329,7 @@ sub compress_pdf() {
   printq("    Compression done. Checking compressed PDF integrity.\n");
   my $test=pdfcompare($file, $tempfile2, $pdfhash);
   if($test){
-    print("  Advanced PDF processing done: Was $was, finished $done.\n");
+    print("    Advanced PDF processing done: Was $was, finished $done.\n");
     move($tempfile2, $file)
   }else{
     unlink($tempfile2);
@@ -1481,7 +1487,7 @@ sub advpdf_obj(){
       my $defret=system('minuimus_def_helper', $tempname, 1)>>8;
       if($defret == 2){
         $dict=substring_replace($dict, '/ColorSpace /DeviceRGB ', '/ColorSpace /DeviceGray'); #qpdf always allows us a generous extra space we can fill up.
-        print("  Converted an RGB24 image to Y8.\n");
+        print("    Converted an RGB24 image to Y8.\n");
       }
     }else{
       system('minuimus_def_helper', $tempname); #Simple DEFLATE, not an image.
@@ -1559,7 +1565,7 @@ sub pdfsizeopt(){
     print("    Retrying pdfsizeopt without jbig2 and font optimisations (As these are the most likely to cause a crash).\n");
     push(@args, '--do-optimize-fonts=no');
   }
-  print("    Invoking pdfsizeopt ($optimisers)\n");
+  print("  Processing with pdfsizeopt ($optimisers)\n");
   push(@args, $optimisers);
   push(@args, $in_file, $tempfile);
   system(@args);
