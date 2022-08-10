@@ -1117,20 +1117,20 @@ sub compress_png($) {
     return;
   }
 
-  print("Processing with optipng");
+  print("  Processing with optipng");
   system('optipng', '-quiet','-o6', '-nc', '-nb', $file);
   print(": Done\n");
 
   if ($anim) {
-    print("Processing with advdef");
+    print("  Processing with advdef");
     system('advdef', '-z4', '-q', $file);
     print(": Done\n");
   } else {
-    print("Processing with advpng");
+    print("  Processing with advpng");
     system('advpng', '-z4', '-q', $file);
     print(": Done\n");
     `which pngout`;
-    print("Processing with pngout");
+    print("  Processing with pngout");
     $? || system('pngout', '-q', $file);
     print(": Done\n");
   }
