@@ -1,0 +1,193 @@
+1.1
+      Added WebP converson, fixed a bug in the .zip processing that caused deletion of thumbs.db and .ds_store to fail.
+      Would like to convert all GIFs and PNGs in CBZ files to WebP, but support for that format is not widespread in CBZ viewers, so I will not. Same reason I don't use arithmetic JPEG.
+1.2
+      Improved performance on zip-family files: Will no longer reassemble the .zip file if none of the constituent files were altered.
+      Fixed a minor typo in instruction text.
+      Fixed a bug that caused deletion of empty directories in cbz files to fail.
+1.3   
+      Added the ability (disabled by default) to convert rar to zip and cbr to cbz, in order to enable further processing. Also because I dislike RAR.
+      Added minuimus_pdf_helper.
+1.31
+      Fixed a resource leak in minuimus_pdf_helper.
+1.4
+      Added a new PDF comparison routine using pdf2djvu which allows for the safe use of qpdf's recovery of malformed PDFs. Now even slightly-iffy PDFs can be optimised.
+      Fixed a bug which was causing zip files to be skipped - I must have inadvertently removed them from the list of zip formats while changing something earlier.
+      Licensed Minuimus and the minuimus_pdf_helper under the GPL v3.
+      Added support for .gz and .tgz files via advdef.
+      Replaced the many dependency checking routines with one testcommand() function.
+1.5
+      Added RAR-to-7z capability.
+      Fixed a few minor mistakes in comments.
+      Will no longer go wrong when given a passworded rar.
+      Command-line option interpreter added: No need to edit the file before running it now.
+      Attempted to fix a bug where minuimus_pdf_helper sometimes hangs while processing certain PDFs. Fix has not been throughly tested. Might be fixed, might not.
+      Added option to preserve file modification times.
+      There's much in common between zip, rar and 7z parts - so now they are all handled by the same routine.
+      Added minuimus_woff_helper. Not as good as converting to woff2, but that wouldn't be transparent - this is. And WOFF fonts are used in EPUB files sometimes. Nice.
+1.6
+      Clarified PDF error messages.
+      Rewrote zip_compare: Previous version was inefficient and choked on ZIPs containing files with accented characters in the filename.
+1.7
+      Substantial improvements to minuimus_pdf_helper. This release focuses on extreme levels of PDF optimisation.
+      After further study of the PDF specification, determining that progressive JPEG is permitted (From PDF1.2 onwards), I altered minuimus_pdf_helper to use it.
+      Added more helpful output to minuimus_pdf_helper, counting objects recompresed.
+      Added the conversion of greyscale RGB images in PDF into true-greyscale.
+      Added some tidying of stream dictionaries to better handle unusual quirks, which were previously not recognised as potentially recompressible objects.
+      As a result of all of the above, PDF compression has been significently improved.
+      Additionally added a new trick for JPEG: Identifying greyscale images encoded as RGB, and turning them into true greyscale. Saves about 2KB per file thus optimised.
+      Added a little more error-handling code.
+1.8
+      Extended agif2apng to include a workaround for a bug in the gif2apng external program. Silly program interprets absolute paths as command line arguments!
+      Added the 'omnicompressor' - an utterly ridiculous method that tries compressing with lots of utilities, and picks whichever works best.
+      Added 7z-zpaq.
+      Removed solid achive creation for 7z. Too much risk for too little gain.
+      Retained and reused the PDF file hash from first validation, if performed, for second validation. This just means that processing of slightly-damaged PDF files will be faster.
+      Added a check for free space *before* attempting a file, so it (probably) won't run out during processing. Probably. Still succeptable to zip-bombs.
+      Added JPG to WebP functionality (Slightly lossy, so only enabled by command line option - mostly intended for shrinking .cbz files.)
+      keep-mod now enabled for recursively processed containers. It's still not fully deterministic, as files may be re-ordered arbitarily, but it's a step closer.
+      Fixed a version compatibility issue with imagemagick.
+1.9
+      Now deletes error-recovery and error-checking files from within CBZ. The recompression process renders them all worthless anyway.
+      JPEG to WebP conversion now uses -pass 10. Very, very slightly more efficient.
+      Improved PNG optimisation by using imagemagick to re-encode files using the adaptive encoder prior to the previous methods of optimisation.
+      Discovered that the improved ZIP comparison from 1.6 introduces new issues. So put the first one back in as a fallback.
+2.0
+      Added FLAC support. Though in my testing, the space saving was pretty small, never more than two percent.
+      Now displays saving as a decimal, not just absolute byte counts.
+      Improved omnicompresser to detect rare-but-possible compression errors that might otherwise lead to corruption.
+      Fixed a bug causing .7z to become .7z. - with an extra dot.
+2.1
+      HTML lower-case-er-izer. This is ridiculous - the space saving will be a fraction of a fraction of a percent. Still going to do it though.
+      Fixed two minor bugs in CBZ handling. Nothing major, they just caused less-then-optimal performance.
+      Added CAB file support. I'd hoped to be able to recompress, but CAB's compression is weird and obscure. MSZIP is almost DEFLATE, but differs just enough that I can't Zopfli it.
+2.2
+      Added support for embedded base64 encoded objects within HTML, CSS and SVG files.
+      Fixed small omission in makefile.
+      Fixed potentially serious issue in minuimus_pdf_helper that could cause crashing or failed recompression.
+      Thanks to eed00 on Reddit for pointing that one out to me.
+2.3   Added --iszip-<ext> option.
+      Added --misc-png option, and made it default within CBZ files.
+2.4
+      Randomised $counter on startup. This relates to my testing-cluster, which currently has a shared /tmp/ while I convert it to root-on-NFS-with-local-tmp configuration.
+      Added SWF support. Though in testing, this has proven to be a bit disapointing. It does work, but the space saving is maybe 1% on average.
+      Added video reencoding support.
+      Added --fix-ext
+      Added MP3-to-Opus support.
+      Added generic_image_recode() - and with it, TIFF support.
+      Fixed a line in minuimus_woff_helper that wouldn't compile with some versions of Zopfli.
+      Added TIFF to the list of 'legacy' formats that can be converted to PNG/WebP if enabled.
+2.5
+      Changed pdf2djvu for pdftoppm. This makes PDF testing much, much faster.
+      Complete rewrite of the PDF optimiser. New one is slower, but more capable (ie, smaller files) and much less succeptable to errors.
+      minuimus_pdf_helper is gone, replaced by minuimus_def_helper
+      Also has scope for further improvements, though it's at diminishing returns now.
+      Fixed a bug that could potentially corrupt HTML files if multiple instances of minuimus run at once, but only in very rare circumstances.
+      Made the temporary folder a configurable option, not just hard-coded /tmp/
+2.6
+      Added audio mono-isation code.
+      Subtitle detection now looks for .SRT as well as .srt
+      Now uses ffmpeg's default bitrate for opus, as it automatically sets based on number of channels.
+2.7
+      Improved capabilities of JPEG handling. Also recognises .jfif extensions as JPEG files.
+      Added automatic chaining with leanify, if present.
+      Now discards metadata on images contained within CBR/CBZ or PDF containers.
+      Added indio5 to list of obsolete codecs.
+      Fixed incorrect function reference to pdf_compare created in 2.5.
+2.71
+      Tidied up audio bitrate determination and added the audio-agg option.
+      Added PAR2 to the list of extensions to discard from CBZ files (As they will be invalidated anyway)
+      Added del-zip-junk option.
+2.8
+      Revised obsolete codec list. Also tries FLV now.
+      fix_ext now does rar/cbr mislabeled cbz/zip
+      Stereo detection now allows for a tiny amount of inter-channel difference, due to rounding errors in lossy compression.
+      Various changes in verbosity.
+      The 'most critical error' will now exit 255, causing xargs to terminate too.
+      Processing PDF files no longer requires jpegtran. Also very slightly improved PDF compression, but it won't save much.
+      Increased minuimus_def_helper memory minimum to 25MB. Tested is on a pi as well, seems to work fine on ARM.
+      Added STL file support. It doesn't actually work on most STL files, but those few it does work on, it works very well.
+      Added MP3 optimiser: It also doesn't actually work on most files. I found that some MP3 files - mostly very old ones - use an inefficient packing. Repacking saves maybe 1-4%.
+2.9
+      No longer uses generic recode on PNGs: Anything it could do, later utility did better.
+      Added ability to strip metadata from PDF files. This can produce a considerable saving, as some PDF files are seriously bloated with useless metadata. Mostly for all the images within.
+      If that function isn't enabled, it still strips useless metadata from some internal objects where it isn't going to be of any use to anyone, giving a smaller saving.
+      qpdf version detection now automatic.
+      Minor adjustment to deciding which streams are candidates for reencoding.
+3.0
+      Deletes '__MACOSX/*' from ZIPs.
+      Video now uses variable frame rate where appropriate. Most video processing toolchains support that now. It'll save space and processing time.
+      Added a WebM repacker - I found too many dodgy WebMs in circulation with invalid timecodes, I think there must be a program out there that makes them.
+      Removed --jpeg-keep-all from leanify call due to compatibility issues - it seems some versions of leanify don't recognise it.
+3.1
+      Fixed a stupid, stupid bug in PDF verification. A single-character typo that meant corruption could be potentially missed!
+      Added the ability to convert RGB24 in PDF images to Y8 - the 'fake grey' where the pixels are 24-bit, but all of them are grey.
+3.2
+      Chained pdfsizeopt into the PDF chain. It's a complicated program to install, but it suppliments minuimus nicely.
+      Added pngout into the png chain, but only if it's installed - it's not in the apt-get repository, so it's optional. It sometimes (though not usually) improves PNG compression further.
+      Doesn't do animated PNG though.
+3.2.1 (2022-01-18)
+      Minor compatibility improvements. Mostly moving from checking /usr/bin to using the 'which' command.
+      This is to improve compatibility between distros, as not all put their utilities in the same place.
+      Fixed typo in an error message.
+      Leanify now processes SVG and PNG when discard-meta enabled.
+      Fixed a bug in video reencode handling files with multiple audio - ffmpeg was dropping all but one track by default!
+3.3 (2022-01-26)
+      Re-fixed the bug with multiple audio: It wasn't fixed after all. Now it is.
+      advdef z4k changed to z4
+      Fixed a number of not-at-all-serious warnings visible with 'use warnings.'
+3.4 (2022-02-28)
+      Fixed a bug which caused very large (>=16384 pixels longest dimension) JPEG files to be incorrectly identified as false grey. Fortunatly the conversion rarely actually happened.
+      PDF now processes files without object streams. This results in slightly worse compression of objects (no more zopfli on object streams) but exposes all the metadata for deletion.
+      The gains outweigh the losses.
+      Added more leeway for MP3 bitrate detection.
+      Turned the MP3 and WebM optimisers into one function - they work in the same manner.
+      New option: --srr enables 'selective resolution reduction.' It scales images down, if doing so is a lossless (or very near lossless) process.
+      That means pictures of flat colors, or gradients. Sometimes pixel art.
+      Pdfsizeopt location detection. Pdfsizeopt is fiddly - there's no standard installation folder, it depends on distro.
+      Will now use imgdataopt option for pdfsizeopt, if it's installed. Another optional dependency: You don't need it, may improve compression.
+      pdfsizeopt output >1MiB will now be linearized by qpdf.
+3.5 (2022-03-03)
+      SRR is now animation-safe (The main reason for the hasty update)
+      sha256sum no longer required: Will use openssl as an alternative.
+      Rewrote part of the PDF code, again. Quite substantially. It had gotten too unwieldy to work with. Now it can process object streams right.
+      Added a PDF pre-processing step with mutool, if available. It does object deduplication.
+      Removed the PDF object cache. It was more trouble than it's worth.
+      Incorporated the dependency checking code contributed by Wdavery.
+3.5.1 (2022-03-05)
+      Fixed scoping mistake on sha256sum. Script now runs unmodified on OSX.
+      Removed a line from the help.
+      Changed mutool option from -ggg to -gggg.
+      Removed leanify notification message.
+      Missing optional dependencies will now generate exactly one notification.
+      Added version display.
+      updated makefile
+3.6
+      Moved JBIG2 processing out from the PDF processing. Makes program more readable. Also opens the road to processing JBIG2 more generally.
+      Though I am not sure if anything else ever uses the acursed codec. Also added additional verification, because cursed.
+      Adjusted PDF to ensure linearization.
+      The changelog grows unweildy: Moved to separate file.
+3.6.1
+      Adjusted mpdecimate filter parameters - noticed the old value was causing a little bit of visible stuttering on some videos.
+      Added 'tif' in addition to 'tiff' as a recognised file extension.
+      Added this changelog to the zip file, which I forgot to do for 3.6.
+3.7
+      A few minor refinements to constants.
+      Windows compatibility work!
+        - Using File::Temp to get temp folder now, instead of hard-coding /tmp
+        - Most uses of `which` are now using functions which do work on windows.
+        - Added an option for recursive folder processing, so you don't need to find|xargs - something you can't easily do on windows.
+        - ffmpeg parsing changed to accept the characters used on windows as well.
+        - Found a bizarre problem with leanify on windows that I do not understand at all. There's a fix for that now, but it is really, really ugly.
+        - Archive processing no longer depends on the 'find' command. Will not run chmod on windows. Extracts using built-in windows zip extractor.
+        - CBR/CBZ processing now uses extension-checking only if 'file' utility is available.
+        - Makefile updated to allow the supporting utilities to be cross-compiled to windows. Except for SWF. The SWF utility has some not-so-portable code.
+      Installing on windows is still going to be hellish on dependency requirements. And none of it is properly tested. But the outline is in.
+      Minuimus now works on windows... partly. Don't trust it yet.
+      Media reencoding and repacking will now identify a silent audio track and remove it.
+      TIFF handling greatly improved. TIFFs can potentially get much smaller now.
+      imagemagik no longer required for JPEG, though the gray-detection won't work without it.
+      Found an inefficiency in JPEG: Was running leanify twice.
+3.7.1
+      Fixed stream detection in video re-encoder - the parsing of ffmpeg output was too version-specific, didn't work on some ffmpegs.
+      
