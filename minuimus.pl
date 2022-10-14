@@ -9,14 +9,20 @@ use File::stat;
 use Digest::SHA  qw(sha1 sha1_hex);
 use MIME::Base64;
 use Fcntl qw< LOCK_EX SEEK_SET >;
-
 use strict;
-
 use Cwd;
+use File::Temp;
+
+
 my %empty;
+
 my $counter=int(rand(10000));
 my %nonessential_failed;
-my $tmpfolder='/tmp'; #Temp folder. No trailing /.
+#my $tmpfolder='/tmp'; #Temp folder. No trailing /.
+#if("$^O" eq 'MSWin32'){$tmpfolder='c:/temp'}
+my $tmpdir = File::Temp->newdir();
+my $tmpfolder = $tmpdir->dirname;
+print("Using temporary folder $tmpfolder\n");
 my $qpdfvers=0;
 my $pdfsizeopt;
 my $pdfsizeoptpath='/var/opt/pdfsizeopt/pdfsizeopt';
@@ -92,7 +98,7 @@ if($options{'help'}){
 # --version`
 ####################
 if($options{'version'}){
-  print("Minuimus.pl - version 3.5.1 (2022-03-05)\n",
+  print("Minuimus.pl - version 3.7.1\n",
         "Written by Codebird\n",
         "Additional changes by Wdavery\n");
   exit(0);
@@ -106,7 +112,7 @@ my $im_convert='convert-im6';
 `which $im_identify`;
 if($?){$im_identify='identify'};
 `which $im_convert`;
-if($?){$im_convert='convert'};
+if($? && ("$^O" ne 'MSWin32')){$im_convert='convert'};
 my $sha256sum='sha256sum';
 
 `which $sha256sum`;
@@ -141,9 +147,16 @@ if($options{'check-deps'}){
 # Main Routine
 ####################
 # Iterates compressfile for every input file
-for (@files) {
+while ($_ = pop(@files)) {
   if(-f $_){
     compressfile($_, \%options);
+  }
+  if(-d $_){
+    if($options{'recur-folder'}){
+      processfolder($_);
+    }else{
+      print("  A folder was given, but --recur-folder was not specified.\n");
+    }
   }
 }
 
@@ -227,7 +240,9 @@ sub compress_zip() {
   if($ext eq '.cbz' ||
      $ext eq '.cbr' ||
      $ext eq '.cb7'){
-    $suboptions{'fix-ext'}=1;
+    if(testcommand_nonessential('file')){
+      $suboptions{'fix-ext'}=1;
+    }
     $suboptions{'discard-meta'}=1;
     $suboptions{'gif-png'}=1;
     $suboptions{'misc-png'}=1;
@@ -285,19 +300,16 @@ sub compress_zip() {
    return(0);
   }
 
-
   #Keep it to the simple files only.
-  my @filelist=sort split(
-    /\0/,
-    `find . -type f -print0`
-  );
+  my @filelist=get_recursive_files('.');
   my $numfiles=@filelist;
+  print("Processing $numfiles files within container.\n");
 
   my $savedfiles=0;
   for (@filelist){
     $savedfiles+=compressfile($_, \%suboptions);
   };
-  #$savedfiles=1;
+
   if(!$savedfiles &&
       $intype eq 'zip' &&
       $outtype eq 'zip'){
@@ -368,6 +380,34 @@ sub compress_zip() {
   move($tempfile, $output_file);
   chdir($initialcwd);
   return($output_file);
+}
+
+####################
+# get_recursive_files: Utility
+####################
+sub get_recursive_files($){
+  my $path=$_[0];
+  $path=~s/\n//;
+  $path=File::Spec->rel2abs($path);
+  my @returns;
+  if( -d $path){
+    my $dh;
+    opendir($dh, $path);
+    my @dir_listing = readdir $dh;
+    closedir $dh;
+    for (@dir_listing){
+      if((substr($_, 0, 1) ne '.') &&
+         (substr($_, 0, 1) ne '$')){
+           if(-d "$path/$_"){
+             push(@returns, get_recursive_files("$path/$_"));
+           }
+           if(-f "$path/$_"){
+             push(@returns, "$path/$_");
+           }
+         }
+    }
+  }
+  return(@returns);
 }
 
 ####################
@@ -487,7 +527,7 @@ sub compress_pdf() {
 
   my $processed_objects=adv_pdf_iterate_objects($tempfile, 0, $discard_meta);
   if($processed_objects){
-    if(-s $file > 1024*1024){
+    if(-s $file > 5*1024*1024){
       system('qpdf', $tempfile, '--stream-data=preserve', '--object-streams=generate', '--decode-level=none', @opt_args, '--linearize',  $tempfile2);
     }else{
       system('qpdf', $tempfile, '--stream-data=preserve', '--object-streams=generate', '--decode-level=none', @opt_args, $tempfile2);
@@ -501,8 +541,11 @@ sub compress_pdf() {
   }
   unlink($tempfile2);
   adv_pdf_iterate_objects($tempfile, 1);
-
-  system('qpdf', $tempfile, '--stream-data=preserve', '--object-streams=preserve', '--decode-level=none', @opt_args, $tempfile2);
+  if(-s $tempfile > 5*1024*1024){
+    system('qpdf', $tempfile, '--stream-data=preserve', '--object-streams=preserve', '--decode-level=none', @opt_args, $tempfile2);
+  }else{
+    system('qpdf', $tempfile, '--stream-data=preserve', '--object-streams=preserve', '--decode-level=none', @opt_args, '--linearize',$tempfile2);
+  }
   unlink($tempfile);
   my $was= -s $file;
   my $done= -s $tempfile2;
@@ -638,11 +681,6 @@ sub advpdf_obj(){
     $filtertype=2;
     $tempname=$tempname.'.jpg';
   }elsif((index($dict, '/Filter /JBIG2Decode ')>0) && (index($dict, 'JBIG2Globals') == -1)){
-    if(! (testcommand_nonessential('jbig2dec') && testcommand_nonessential('jbig2'))){
-      return(0); #jbig2dec you can get off of the repository, but jbig2 is a complicated compile from source.
-                 #And in any case, almost all PDFs with JBIG2 already use the same or better encoder, so it's not likely to improve at all.
-                 #Use it if it's around, maybe it'll give another percentage point saving at most. But if not, don't even prompt for it to be installed.
-    }
     $filtertype=3;
     $tempname=$tempname.'.jbig2';
   }else{
@@ -651,7 +689,7 @@ sub advpdf_obj(){
   my $streamlen=substr($dict, index($dict, ' /Length ')+9);
   $streamlen=substr($streamlen, 0, index($streamlen, ' '));
   if($streamlen<=5){return(0);}
-  #print("Processing object:\n$object\n");
+  #  print("Processing object:\n$object\n");
   my $contentsoffset=$offset+length($dict)+1;
   my $contents;
   sysseek($fh, $contentsoffset, SEEK_SET);
@@ -662,14 +700,7 @@ sub advpdf_obj(){
   syswrite($tempfh, $contents, $streamlen);
   close($tempfh);
   if($filtertype==3){
-    my $temp1="$tmpfolder/tempex-$$-$counter.pbm";
-    $counter++;
-    system('jbig2dec', '-e', '-t', 'pbm', '-o', $temp1 ,$tempname);
-    `jbig2 -p -v "$temp1" 2>/dev/null > "$tempname"`;
-    my $newsize= -s $tempname;
-    if(($newsize == 0 ) || ($newsize >= $streamlen)){
-      unlink($tempname);unlink($temp1);return(0);
-    }
+    process_jbig2($tempname);
   }
   if($filtertype==2){
     process_jpeg($tempname, 1, 1);
@@ -719,6 +750,33 @@ sub advpdf_obj(){
     return(1); #Indicates a successful reduction.
 }
 
+sub process_jbig2(){
+    my $tempname=$_[0];
+    if(! (testcommand_nonessential('jbig2dec') && testcommand_nonessential('jbig2'))){
+      return($tempname); #jbig2dec you can get off of the repository, but jbig2 is a complicated compile from source.
+                         #And in any case, almost all PDFs with JBIG2 already use the same or better encoder, so it's not likely to improve at all.
+    }
+
+    my $temp1="$tmpfolder/tempex-$$-$counter.pbm";
+    my $temp2="$tmpfolder/tempex-$$-$counter.jbig2";
+    my $temp3="$tmpfolder/tempex-$$-$counter.pbm";
+    $counter++;
+    system('jbig2dec', '-e', '-t', 'pbm', '-o', $temp1 ,$tempname);
+    `jbig2 -p -v "$temp1" 2>/dev/null > "$temp2"`;
+    my $newsize= -s $temp2;
+    if(($newsize == 0 ) || ($newsize >= -s $tempname)){
+      unlink($temp1);unlink($temp2);return($tempname);
+    }
+    #tempname, temp1, temp2, temp3 : original, decoded, encoded, re-decoded
+    system('jbig2dec', '-e', '-t', 'pbm', '-o', $temp3 ,$temp2);
+    if(getsha256($temp2) ne getsha256($temp3)){
+      print("    JBIG2 optimisation performed, but failed verification.\n");
+      unlink($temp1);unlink($temp2);unlink($temp3);return($tempname);
+    }
+    move($temp2, $tempname);
+    return($tempname);
+}
+
 ####################
 # substring_replace: PDF processor utility
 ####################
@@ -746,7 +804,7 @@ sub pdfsizeopt(){
   my $no_jbig2=$_[1];
 
   is_pdfsizeopt_installed() || return(0);
-  #my $initialcwd=getcwd();
+  #  my $initialcwd=getcwd();
   my $tempfile="$tmpfolder/minu-sizeopt-$$-$counter.pdf";
   my $tempfile2="$tmpfolder/minu-sizeopt-$$-$counter-b.pdf";
   $counter++;
@@ -792,6 +850,7 @@ sub pdfsizeopt(){
     return(1);
   }
 }
+
 sub is_pdfsizeopt_installed(){
   if($pdfsizeopt==1){return(0);}
   if($pdfsizeopt==2){return(1);}
@@ -829,13 +888,18 @@ sub extract_archive(){
     testcommand('7z');
     $err=system('7z', 'x', $input_file);
   }else{
+    if("$^O" eq 'MSWin32'){
+      testcommand('tar');
+      $err=system('tar', '-xf', $input_file); #Windows has a built in tar command which will also extract zips.
+    }else{
     testcommand('unzip');
     $err=system('unzip', '-q', $input_file);
+    }
   }
   # Because some epubs, for some odd reason, seem to like putting a unix
   # permission extension in that 000's mimetype. Better do this just to be safe.
   if($err || $?){return(1);}
-  system('chmod', 'u+rwX', '.', '-R');
+  ("$^O" eq 'MSWin32') || system('chmod', 'u+rwX', '.', '-R');
   return(0);
 }
 
@@ -931,7 +995,7 @@ sub make_zpaq(){
     unlink($output_file);
     return(1);
   }
-  #print("  zpaq size $size.");
+#  print("  zpaq size $size.");
   return(0);
 }
 
@@ -1399,6 +1463,7 @@ sub compressfile($%) {
     $ext=~s/^.*\.//;
   }
   if($ext eq 'tiff' || #This is the only handler for TIFF.
+     $ext eq 'tif' ||
      $ext eq 'gif'){  #It also applies the first effort on optimising GIF, but better tools follow further down.{
     generic_image_recode($file);
   }
@@ -1414,6 +1479,7 @@ sub compressfile($%) {
 
   if (($ext eq 'pcx' ||
       $ext eq 'bmp' ||
+      $ext eq 'tif' ||
       $ext eq 'tiff')
       && $options{'misc-png'}){
     $file=img2png($file);
@@ -1425,8 +1491,7 @@ sub compressfile($%) {
     if(
       ($ext eq 'png' && is_animated_png($file)==0) ||
       ($ext eq 'webp' && is_animated_webp($file)==0) ||
-      $ext eq 'bmp'
-    ){
+      $ext eq 'bmp'){
       while(SRR_image($file)){};
     }
   }
@@ -1604,23 +1669,53 @@ sub compressfile($%) {
   }
   return($saving);
 }
+
+sub processfolder(){
+  my $path=$_[0];
+  $path=~s/\n//;
+  if( -d $path){
+    print("Processing $path recursively.\n");
+    my $dh;
+    opendir($dh, $path);
+    my @dir_listing = readdir $dh;
+    closedir $dh;
+    for (@dir_listing){
+      if((substr($_, 0, 1) ne '.') &&
+         (substr($_, 0, 1) ne '$')){
+           push(@files, "$path/$_"); #Skip ., .. and hidden files.
+         }
+    }
+  }
+}
+
 sub testcommand($){
   my $totest=$_[0];
   if($testedcommands{$totest}){return;}
-  `which $totest`;
+  if("$^O" eq 'MSWin32'){
+    $totest=$totest.'.exe';
+    `where $totest`
+  }else{
+    `which $totest`;
+  }
    if(! $?){
-         $testedcommands{$totest}=1;
+    $testedcommands{$totest}=1;
     return;
   }
   print("Minuimus requires $totest. Install dependency or 'make deps' and retry.\n");
   exit(1);
 }
+
 sub testcommand_nonessential($){
   my $totest=$_[0];
   $nonessential_failed{$totest} && return(0);
-  `which $totest`;
+  if("$^O" eq 'MSWin32'){
+    $totest=$totest.'.exe';
+    `where $totest`;
+  }else{
+    `which $totest`;
+  }
   if($?){
-    print("Program $totest requested but not available. This is an optional dependency. It is not required for minuimus, but functionality is reduced without it.\n");
+    print("Program $totest requsted but not available. This is an optional dependency. It is not required for minuimus, but functionality is reduced without it.\n");
     print("Installing $totest may enable more effective compression.\n");
     $nonessential_failed{$totest} = 1;
     return(0);
@@ -1628,12 +1723,17 @@ sub testcommand_nonessential($){
     return(1);
   }
 }
+
 sub getfreespace(){
+  if("$^O" eq 'MSWin32'){ #Absolutely hideous ugly hack.
+    return(1000000000000);
+  }
   my @ret=`df -Pk "$tmpfolder/"`;
 
   my @columns=split(' ', $ret[1]);
   return($columns[3]);
 }
+
 # --verbose: Verbose option 
 sub printq(){
   if($options{'verbose'}){
@@ -1643,7 +1743,11 @@ sub printq(){
 # --check-deps: Checks installation status of given package
 sub depcheck($){
   my $totest=$_[0];
-  `which $totest`;
+  if("$^O" eq 'MSWin32'){
+    `where $totest.exe /Q`;
+  }else{;
+    `which $totest`;
+  }
    if(! $?){
          print("✅/Y $totest\n");
     return;
@@ -1760,12 +1864,31 @@ sub leanify($){
   if(! -f $tempfile){
     die("  Failed when copying to $tmpfolder - possible permissions or free space issue. Terminating.");
   }
-    my @leanify_parms = ('leanify', '-q', '--keep-icc');
+  my @leanify_parms = ('leanify', '-q');
+  if("$^O" ne 'MSWin32'){
+    push(@leanify_parms, '--keep-icc');
+  }
   $discard_meta && push(@leanify_parms, '--keep-exif');
   push(@leanify_parms, $file);
   my $ret=system(@leanify_parms);
-    my $presize = -s $tempfile;
+  my $presize = -s $tempfile;
   my $postsize = -s $file;
+  if(!$postsize && ("$^O" eq 'MSWin32')){
+    #Leanify on windows sometimes does something weird. I don't understand why. But after leanify runs, perl can't see the file any more.
+    #Has to be some really strange interaction between windows and unix permissions? Here's a dirty hack to fix it.
+    print("  Applying weird ugly hack that is only needed for leanify on windows.\n");
+    my $uglyfile="$tmpfolder/$$-$counter-uglyhack.tmp";
+    copy($file, $uglyfile);
+    if(-s $uglyfile){
+      print("    Hack seems to have worked. I feel dirty.\n");
+      my $file_slashed=$file;
+      $file_slashed =~ s/\//\\/g;
+      `del "$file_slashed"`; #Yes, it's that bad: unlink() doesn't work.
+      copy($uglyfile, $file);
+      $postsize = -s $file;      
+    }
+    unlink($uglyfile);
+  }  
   if($ret || ($postsize > $presize) || (-s $file == 0)){
     print("  Leanify appears to have gone wrong, restoring original file.\n  Return was $ret.");
     unlink($file);
@@ -1879,6 +2002,7 @@ sub is_animated_webp(){
 #get_img_size: --srr option utility
 sub get_img_size(){
   my $file=$_[0];
+  testcommand($im_identify);
   my $res=`$im_identify -ping -format "\%w \%h" "$file"`;
   $res =~ s/\n//g;
   my @splitres=split(/ /, $res);
@@ -1900,9 +2024,6 @@ sub process_jpeg($$$){
   }
   my $ignoregrey=$_[2]; #Disables the greyscale image detection.
   testcommand('jpegoptim');
-  $ignoregrey || testcommand('jpegtran');
-  $ignoregrey || testcommand($im_identify);
-  $ignoregrey || testcommand($im_convert);
   my $ret=system('jpegoptim', '-T1', '--all-progressive', '-p', '-q', $file);
   if($ret){
     print "  Aborting processing of JPEG file. May be a damaged file or incorrect extension?\n";
@@ -1914,28 +2035,31 @@ sub process_jpeg($$$){
   $counter++;
   my $grey='';
 
-  if(!$ignoregrey && fileisgrey($file)){
+  if(("$^O" ne 'MSWin32') && testcommand_nonessential('jpegtran')){ #jpegtran on windows is a little different.
+    if(!$ignoregrey && fileisgrey($file)){
       print "  JPEG is greyscale but encoded as color. Converting to true greyscale if this reduces usage.\n";
       $grey='-grayscale';
-  }
-  `which jpegtran`;
-  if($?){
-    `jpegtran -optimize -progressive -copy $copytype $grey "$file" > $tempfile`;
-    my $before = -s $file;
-    my $after = -s $tempfile;
-    if($? || !$after ||$after >= $before){
-      unlink($tempfile);
-      return($file);
     }
-    move($tempfile, $file);
-    unlink($tempfile);
+    `which jpegtran`;
+    if($?){
+      `jpegtran -optimize -progressive -copy $copytype $grey "$file" > $tempfile`;
+      my $before = -s $file;
+      my $after = -s $tempfile;
+      if($? || !$after ||$after >= $before){
+        unlink($tempfile);
+        return($file);
+      }
+      move($tempfile, $file);
+      unlink($tempfile);
+    }
   }
-  leanify($file);
   return($file);
 }
 # fileisgrey: JPEG processor utility
 sub fileisgrey(){
   my $file=$_[0];
+  testcommand_nonessential($im_identify) || return(0);
+  testcommand_nonessential($im_convert) || return(0);
   my $desc=`$im_identify "$file"`;
   if(!($desc =~ m/ 8-bit sRGB /)){
     return(0);
@@ -1959,7 +2083,7 @@ sub fileisgrey(){
     $tot++;
   }
   close($pipe);
-    if($tot < 64){
+    if($tot < 192){
     return(0);
   }
   return(1);
@@ -2031,9 +2155,8 @@ sub compress_png($) {
     print("  Processing with advpng");
     system('advpng', '-z4', '-q', $file);
     print(": Done\n");
-    `which pngout`;
+    testcommand_nonessential('pngout') && system('pngout', $file);
     print("  Processing with pngout");
-    $? || system('pngout', '-q', $file);
     print(": Done\n");
   }
 }
@@ -2109,26 +2232,21 @@ sub generic_image_recode($){
   #Uses imagemagick to convert an image file to its own type, while at the highest compression settings.
   #There are better tools for PNG and JPEG. But not for TIFF. Still going to run this on PNGs, but only as a first-effort.
   #It also works on GIF, though again, only as a first-effort before trying some other tools.
-  testcommand($im_convert);
   my $file=$_[0];
   my $ext=lc($file);
   $ext=~s/^.*\.//;
-  my $quality;
-  if($ext eq 'tiff'){
-    $quality='90';
-  }elsif($ext eq 'png'){
-    $quality='95';
+  if($ext eq 'png'){
     is_animated_png($file) && return(0);#Convert does not support animated PNG.
-  }elsif($ext eq 'gif'){
-  }else{
-    return(0);
   }
+  testcommand($im_convert);
   my $tempfile="$tmpfolder/image-$$-$counter.$ext";
   $counter++;
   if($ext eq 'gif'){
     system($im_convert, $file, $tempfile);
+  }elsif(($ext eq 'tif') || ($ext eq 'tiff')){
+    system($im_convert, $file, '-quality', '90', '-compress', 'zip', $tempfile);
   }else{
-    system($im_convert, $file, '-quality', $quality, $tempfile);
+    system($im_convert, $file, '-quality', '95', $tempfile);
   }
   if($? || (-s $tempfile == 0)){unlink($tempfile);}
   if(! -f $tempfile){
@@ -2261,7 +2379,7 @@ sub processvideo(){
   }
   my @streams;
   for (split(/\n/, $ret)){
-    if(substr($_, 0, 14) eq "    Stream #0:"){
+    if($_ =~ m/ +Stream #0:/){
       push(@streams, substr($_, 14));
     }
   }
@@ -2317,31 +2435,37 @@ sub processvideo(){
   if($keepaudio){
     print("  Keeping existing audio without reencode.\n");
     push(@args, '-c:a', 'copy');
-  }else{
+   }else{
     my $isnotmono=isnotmonoable($oldname); #See function for return values, as there are a lot of them.
-    if($isnotmono){
-      push(@args, '-codec:a', 'libopus', '-frame_duration', '60');
-    }else{
+    if($isnotmono == 2){ #Due to many revisions, this tree of logic has gotten a bit convoluted.
+      #File has no audio tracks. Do nothing.
+    }elsif($isnotmono == 8){
+      push(@args, '-an');
+    }elsif($isnotmono == 0){
       push(@args, '-ac', '1','-codec:a', 'libopus', '-frame_duration', '60');
+    }else{
+      push(@args, '-codec:a', 'libopus', '-frame_duration', '60');
     }
   }
+  
   push(@args, '-c:v', 'av1', '-lag-in-frames', '19', '-b:v', '0', '-tiles', '2x2', '-g', '600');
   my $crf=29;
   if($options{'video-agg'}){$crf=34;}
   push(@args,  '-crf', $crf); #Default is 32, but going for a bit higher quality here.
                               #Remember the aim is to recompress ancient DivX/XVID/MPEG1/MPEG2.
                               #Even on a high quality setting, AV1 will hit a lower bitrate than those.
-  push(@args, '-vf', 'hqdn3d=0:0:2:2,nlmeans=s=1,mpdecimate=max=6'); #A mild denoiser, followed by duplicate frame removal (Saves space and encoding time, mostly good on animation)
+  push(@args, '-vf', 'hqdn3d=0:0:2:2,nlmeans=s=1,mpdecimate=max=6:hi=384'); #A mild denoiser, followed by duplicate frame removal (Saves space and encoding time, mostly good on animation)
                               #Denoising used very sparingly to take out some of the artifacts.
                               #Otherwise the old compression artifacts would interfere with AV1.
                               #Leading to reduced compression efficiency.
                               #These settings are very low though, anything more would be risky.
                               #Proper manual adjustment would do much better than this script.
                               #But this is automatic, so err on the side of too-weak.
-  #push(@args, '-cpu-used', '0'); #Nothing less than perfection!
-  #push(@args, '-cpu-used', '8'); #For testing purposes only.
+                              #Default for 'hi' is 768, but I found that caused visual stuttering.
+#  push(@args, '-cpu-used', '0'); #Nothing less than perfection!
+#  push(@args, '-cpu-used', '8'); #For testing purposes only.
   my $oldname_shortened=$oldname;
-  $oldname_shortened=~s/.*\///;
+  $oldname_shortened=~s/.*[\/\\]//;
   push(@args, '-metadata', 'encoded_from_name='.$oldname_shortened);
   push(@args, '-metadata', 'encoded_from_sha256='.getsha256($oldname));
 
@@ -2351,6 +2475,7 @@ sub processvideo(){
     return($oldname);
   }
   push(@args, $tempfile);
+    print("  Full arguements: @args\n");
   $ret=system(@args);
   if($ret){
     print("  Encode failed (Returned $ret).\n");
@@ -2401,7 +2526,7 @@ sub isstreamok(){ #These are the streams we are OK to mess with.
   m/: Video: msmpeg4v3 / && return(1); #Is this the old WMV?
   m/: Audio: qdm2 / && return(1); #An audio codec used in old quicktime files.
   m/: Video: svq3 / && return(1); #A video codec used in old quicktime files. Tends to be found alongside the above.
-  m/: Audio: vorbis,/ && return(2); #The 2 says to set audio to copy, not re-encode.
+  m/: Audio: vorbis[ ,]/ && return(2); #The 2 says to set audio to copy, not re-encode.
   m/: Video: vp6f[ ,]/ && return(1); #Old codec from 2003, sometimes found in old FLV files.
   m/: Video: flv1[ ,]/ && return(1); #Another codec from old FLV files.
   m/: Subtitle: text/ && return(1); #ffmpeg can convert this into webvtt, the one format WebM allows.
@@ -2430,8 +2555,15 @@ sub process_multimedia($){
       push(@args, '-bsf:v', 'mpeg4_unpack_bframes');
     }
   }
+  my $audio=isnotmonoable($file);
+  if($audio == 8){
+      push(@args, '-an');
+  }
+  if($audio == 0){
+    print("  File contains mono audio as stereo. There is no way to fix this losslessly, it just indicates poor file authorship.\n");
+  }
   push(@args, $tempfile);
-  my $ret=system(@args);
+  print("  Full args: @args\n");  my $ret=system(@args);
   if($ret){
     print("  Possible error in file, will not attempt to process: $file\n");
     unlink($tempfile);
@@ -2544,6 +2676,10 @@ sub recode_audio($){
     push(@args, '-ac', '1');
   }
   print("Target bitrate $rate kbps\n");
+  if($isnotmono == 8){
+    print("  Skipping silent file.\n");
+    return($file);
+  }  
   push(@args, '-codec:a', 'libopus', '-b:a', $rate.'k', '-frame_duration', '60');
   push(@args, '-metadata', 'encoded_from_name='.$oldname_shortened);
   push(@args, '-metadata', 'encoded_from_sha256='.getsha256($file));
@@ -2572,13 +2708,26 @@ sub recode_audio($){
 sub get_media_len(){
   my $fn=$_[0];
   testcommand('ffmpeg');
-  my $len=`ffmpeg -i "$fn" 2>&1 | grep "  Duration: "`;
+  my $len=`ffmpeg -i "$fn" 2>&1`;
+  $len=minigrep($len, "  Duration: ");
   $len =~ /(\d\d):(\d\d):(\d\d)\.(\d\d)/;
-  #$len =~ s/,.*//;
-  #$len =~ s/.* //;
-  #$len =~ m/()@/; 
+#  $len =~ s/,.*//;
+#  $len =~ s/.* //;
+#  $len =~ m/()@/; 
   return($3+(60*$2)+(60*60*$1));
 }
+
+# minigrep: Utility
+sub minigrep($){
+  my $ret='';
+  my @lines=split( /\n/,$_[0]);
+  my $target=$_[1];
+  for(@lines){
+    if(index($_, $target) != -1){$ret=$ret.$_}
+  }
+  return($ret);
+}
+
 # isnotmonoable: Audio/video processor utility
 sub isnotmonoable($){
   #Returns 0 if the file is a stereo file which contains mono audio.
@@ -2586,6 +2735,7 @@ sub isnotmonoable($){
   my $file=$_[0];
   testcommand('ffprobe');
   testcommand('ffmpeg');
+  printf("  Examining audio for potential optimisations.\n");
   my @ret=`ffprobe "$file"  2>&1`;
   if($?){
     print("  Unable to ffprobe file.\n");
@@ -2593,45 +2743,82 @@ sub isnotmonoable($){
   }
   my $audioline;
   for (@ret){
-    if($_ =~ m/    Stream #[0123456789]+.*: Audio: (.*)/){
-      $audioline && return(1); #File contains multiple audio streams.
+    if($_ =~ m/ *Stream #[0123456789]+.*: Audio: (.*)/){
+      if($audioline){
+        print("  File contains multiple audio streams: Skipping mono/silent track detection, multiple streams not supported by this feature.\n");
+        return(1); #File contains multiple audio streams.
+      }
       $audioline=$1;
     }
   }
-  $audioline || return(2); #File contains no audio streams.
+  if(!$audioline){
+    print("  No audio streams identified: Audio optimisation skipped.\n");
+   return(2);
+  }
   if(index($audioline,', mono,') != -1){;
+    print("  Existing mono audio detected.\n");
     return(7); #This is already mono. The calling routine will interpret a return of 7 as an indicator to lower the bitrate a bit.
   }
   if(index($audioline,'stereo,') == -1){;
+    print("  Multichannel audio detected: Skipping mono/silent track detection, multiple channels not supported by this feature.\n");
     return(3); #The audio is not stereo (ie, multichannel)
   }
 
   my $pipe;
-  my $pid=open($pipe, '-|','ffmpeg -v warning -nostats -hide_banner -i "'.$file.'" -f u8 -ac 2  - 2>/dev/null');
+  print("  Extracting 8-bit stereo audio for analysis\n");
+  my $pid;
+  if("$^O" eq 'MSWin32'){
+    $pid=open($pipe, '-|','ffmpeg -v warning -nostats -hide_banner -i "'.$file.'" -f u8 -ac 2  -');
+  }else{
+    $pid=open($pipe, '-|','ffmpeg -v warning -nostats -hide_banner -i "'.$file.'" -f u8 -ac 2  - 2>/dev/null');
+  }
   if(!$pid){
+    print("  Error(1) invoking ffmpeg to extract u8 audio.\n");
     return(4); #Error in file decoding.
   }
   binmode($pipe);
   my $differences=0; #Tolerate a small number of differences.
+  my $issilent=1; #Because sometimes the track is pure silence, due to limitations or improper use of earlier tools.
+  my $samples=0;
   while(!eof($pipe)){
     my $a;my $b;
     my $check=read($pipe, $a, 1);
     $check+=read($pipe, $b, 1);
     if($check!=2){
       close($pipe);
+      print("  Odd number of samples found. This should not happen. Possibly bad file?\n");
       return(5); #Bad file?
     }
-    if(abs(ord($a)-ord($b)) > 5){$differences++} #You have to allow a little for rounding errors in earlier processing.
+    $a=ord($a);
+    $b=ord($b);
+    if(abs($a-$b) > 5){$differences++} #You have to allow a little for rounding errors in earlier processing.
     if($differences>100){
       close($pipe);
       kill(9, $pid);
+      print("  Ordinary stereo audio identified: No special handling will be used.\n");
       return(6); #This is actually the most common: It's just a stereo file.
     }
+    if((abs($a-128)+abs($b-128) > 6)){
+      $issilent=0;
+    }
+    $samples++;
   }
   close($pipe);
-  print("  File contains a stereo track, but with mono audio. Downmixing to a single channel.\n");
+  if($samples < 6){
+    print("  Error(2) invoking ffmpeg to extract u8 audio.\n");
+    return(4); #Error in file decoding.
+  }
+
+  print("    Examined $samples samples.\n");
+  
+  print("  File contains a stereo track, but with mono audio. Downmixing to a single channel if possible.\n");
+  if($issilent){
+    print("  One better: The audio track is silent, and may be discarded.\n");
+    return(8);
+  }
   return(0); #Mono audio in a stereo file. Inefficiency identified! This can be optimised.
 }
+
 # getsha256: Checksum utility for audio and video processing
 sub getsha256($){
   my $makesha256 = Digest::SHA->new("sha256");
