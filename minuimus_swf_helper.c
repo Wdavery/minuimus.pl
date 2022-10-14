@@ -5,7 +5,7 @@
 #include <string.h>
 #include "zlib.h"
 #include "zopfli/zlib_container.h"
-#include<sys/wait.h> 
+#include <sys/wait.h> 
 
 //#include <lzma.h>
 //#include <assert.h>

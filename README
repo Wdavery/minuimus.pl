@@ -13,8 +13,16 @@ make install (Copies all needed files to /usr/bin)
 
 Additionally, GIF optimisation requires Flexigif, which is not in the ubuntu repository and must be downloaded and installed manually from  from https://create.stephan-brumme.com/flexigif-lossless-gif-lzw-optimization
 
-The full documentation for minumius, including a detailed description of the processing performed on each supported file type, can be read at https://birds-are-nice.me/software/minuimus.html
+The full documentation for minuimus, including a detailed description of the processing performed on each supported file type, can be read at https://birds-are-nice.me/software/minuimus.html
 
 All of the optimisations enabled by default are completely lossless and transparent. Minuimus is also capable of a number of non-transparent or slightly lossy optimisations, which must be enabled by command line option. To see the list of supported options, run minuimus.pl --help
 
-pngout for linux can be obtained from https://jonof.id.au/kenutils.html and should be installed by placing the entire folder under /var/opt/pdfsizeopt.
+pngout for linux can be obtained from https://jonof.id.au/kenutils.html
+
+pdfsizeopt should be installed by placing the entire folder under /var/opt/pdfsizeopt.
+
+
+---
+On ffmpeg:
+  If you intend to process multimedia, you are going to need ffmpeg. Depending on your distro and how up-to-date the repositories are, you may need to compile ffmpeg from source. That's good! But you need to make sure two of the optional libraries are compiled in.
+  Not difficult: It just means that when you do ./configure, you need to use ./configure --enable-libaom --enable-libopus --enable-gpl to make sure those are included. You might need to apt-get the appropriate dev packages too.
